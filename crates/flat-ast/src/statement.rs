@@ -14,6 +14,6 @@ pub struct Command {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Assign {
-    pub ident: String,
+    pub ident: Expr,
     pub expr: Expr,
 }

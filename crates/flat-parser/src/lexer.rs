@@ -35,6 +35,12 @@ impl Lexer {
                     break;
                 }
 
+                '=' => {
+                    self.position += 1;
+                    tkn = Token::Assign;
+                    break;
+                }
+
                 '>' => {
                     self.position += 1;
                     tkn = Token::Gt;

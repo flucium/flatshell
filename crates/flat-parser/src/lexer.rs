@@ -57,10 +57,10 @@ impl Lexer {
                 '$' => {
                     self.position += 1;
 
-                    if let Some(peek_ch) = self.input.get(self.position + 1) {
+                    if let Some(peek_ch) = self.input.get(self.position) {
                         if peek_ch.is_whitespace() == false {
-                            self.position += 1;
                             tkn = Token::Ident(self.read_string());
+                            self.position += 1;
                             break;
                         }
                     }

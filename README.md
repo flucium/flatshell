@@ -1,2 +1,1 @@
-# flatshell
-flat shell
+# FlatShell

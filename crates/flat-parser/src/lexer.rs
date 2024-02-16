@@ -3,6 +3,7 @@ use crate::token::Token;
 pub struct Lexer {
     input: Vec<char>,
     position: usize,
+    is_eof:bool,
 }
 
 impl Lexer {
@@ -10,10 +11,11 @@ impl Lexer {
         Lexer {
             input: input.chars().collect(),
             position: 0,
+            is_eof: false,
         }
     }
 
-    pub fn read(&mut self) -> Token {
+    fn read(&mut self) -> Token {
         let mut tkn = Token::EOF;
 
         while let Some(ch) = self.input.get(self.position) {
@@ -141,5 +143,24 @@ impl Lexer {
         };
 
         self.input[start..end].iter().collect()
+    }
+}
+
+impl Iterator for Lexer {
+    type Item = Token;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let tkn = self.read();
+
+        if tkn == Token::EOF {
+            if self.is_eof{
+                None
+            }else{
+                self.is_eof = true;
+                Some(tkn)
+            }
+        } else {
+            Some(tkn)
+        }
     }
 }

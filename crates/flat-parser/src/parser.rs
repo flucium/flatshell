@@ -288,3 +288,4 @@ mod tests {
         assert_eq!(redirect.operator, flat_ast::RecirectOperator::Lt);
     }
 }
+

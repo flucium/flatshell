@@ -176,3 +176,164 @@ impl Iterator for Lexer {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_lexer() {
+        let input = r#"
+            "hello" "world" @1 @2 3
+            | ; = > < & $
+        "#;
+
+        let mut lexer = Lexer::new(input);
+
+        let expected = vec![
+            Token::String("hello".to_string()),
+            Token::String("world".to_string()),
+            Token::FD(1),
+            Token::FD(2),
+            Token::USize(3),
+            Token::Pipe,
+            Token::Semicolon,
+            Token::Assign,
+            Token::Gt,
+            Token::Lt,
+            Token::Ampersand,
+            Token::Dollar,
+            Token::EOF,
+        ];
+
+        for tkn in expected {
+            assert_eq!(lexer.next(), Some(tkn));
+        }
+    }
+
+    #[test]
+    fn test_lexer_string() {
+        let input = r#"
+            "hello" "world" "hello world"
+        "#;
+
+        let mut lexer = Lexer::new(input);
+
+        let expected = vec![
+            Token::String("hello".to_string()),
+            Token::String("world".to_string()),
+            Token::String("hello world".to_string()),
+            Token::EOF,
+        ];
+
+        for tkn in expected {
+            assert_eq!(lexer.next(), Some(tkn));
+        }
+    }
+
+
+    #[test]
+    fn test_lexer_ident(){
+        let input = r#"
+            $hello $world
+        "#;
+
+        let mut lexer = Lexer::new(input);
+
+        let expected = vec![
+            Token::Ident("hello".to_string()),
+            Token::Ident("world".to_string()),
+            Token::EOF,
+        ];
+
+        for tkn in expected {
+            assert_eq!(lexer.next(), Some(tkn));
+        }
+    }
+
+
+    #[test]
+    fn test_lexer_string_with_pipe() {
+        let input = r#"
+            "hello" | "world" | "hello world"
+        "#;
+
+        let mut lexer = Lexer::new(input);
+
+        let expected = vec![
+            Token::String("hello".to_string()),
+            Token::Pipe,
+            Token::String("world".to_string()),
+            Token::Pipe,
+            Token::String("hello world".to_string()),
+            Token::EOF,
+        ];
+
+        for tkn in expected {
+            assert_eq!(lexer.next(), Some(tkn));
+        }
+    }
+
+    #[test]
+    fn test_lexer_string_with_semicolon() {
+        let input = r#"
+            "hello" ; "world" ; "hello world"
+        "#;
+
+        let mut lexer = Lexer::new(input);
+
+        let expected = vec![
+            Token::String("hello".to_string()),
+            Token::Semicolon,
+            Token::String("world".to_string()),
+            Token::Semicolon,
+            Token::String("hello world".to_string()),
+            Token::EOF,
+        ];
+
+        for tkn in expected {
+            assert_eq!(lexer.next(), Some(tkn));
+        }
+    }
+
+    #[test]
+    fn test_lexer_usize(){
+        let input = r#"
+            1 2 3
+        "#;
+
+        let mut lexer = Lexer::new(input);
+
+        let expected = vec![
+            Token::USize(1),
+            Token::USize(2),
+            Token::USize(3),
+            Token::EOF,
+        ];
+
+        for tkn in expected {
+            assert_eq!(lexer.next(), Some(tkn));
+        }
+    }
+
+    #[test]
+    fn test_lexer_fd(){
+        let input = r#"
+            @1 @2 @3
+        "#;
+
+        let mut lexer = Lexer::new(input);
+
+        let expected = vec![
+            Token::FD(1),
+            Token::FD(2),
+            Token::FD(3),
+            Token::EOF,
+        ];
+
+        for tkn in expected {
+            assert_eq!(lexer.next(), Some(tkn));
+        }
+    }
+
+}

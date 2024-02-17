@@ -101,6 +101,18 @@ impl Lexer {
                     tkn = Token::String("@".to_string());
                 }
 
+                '0'..='9' => {
+                    let string = self.read_string();
+
+                    if let Ok(n) = string.parse::<usize>() {
+                        tkn = Token::USize(n);
+                    } else {
+                        tkn = Token::String(string);
+                    }
+
+                    break;
+                }
+
                 _ => {
                     tkn = Token::String(self.read_string());
                     break;

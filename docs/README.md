@@ -45,9 +45,9 @@ We make no warranties regarding third-party licenses. Please carefully review an
 Coming Soon...
 
 ## Contributor
-flucium \<flucium at flucium dot net>
+flucium \<github.com/flucium>
 
-nankachiisai \<github dot com slash nankachiisai>
+nankachiisai \<github.com/nankachiisai>
 
 ## Sponsors
 Coming Soon...

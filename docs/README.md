@@ -47,5 +47,7 @@ Coming Soon...
 ## Contributor
 flucium \<flucium at flucium dot net>
 
+nankachiisai \<github dot com slash nankachiisai>
+
 ## Sponsors
 Coming Soon...

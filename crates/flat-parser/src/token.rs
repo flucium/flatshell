@@ -41,3 +41,24 @@ impl Display for Token {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_token_display() {
+        assert_eq!(Token::EOF.to_string(), "EOF");
+        assert_eq!(Token::Pipe.to_string(), "|");
+        assert_eq!(Token::Assign.to_string(), "=");
+        assert_eq!(Token::Gt.to_string(), ">");
+        assert_eq!(Token::Lt.to_string(), "<");
+        assert_eq!(Token::Semicolon.to_string(), ";");
+        assert_eq!(Token::Dollar.to_string(), "$");
+        assert_eq!(Token::Ampersand.to_string(), "&");
+        assert_eq!(Token::String("hello".to_string()).to_string(), "hello");
+        assert_eq!(Token::Ident("a".to_string()).to_string(), "a");
+        assert_eq!(Token::USize(1).to_string(), "1");
+        assert_eq!(Token::FD(1).to_string(), "1");
+    }
+}

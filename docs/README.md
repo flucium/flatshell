@@ -13,21 +13,21 @@ Coming Soon...
 Coming Soon...
 
 ## Docs
-**[README.md](https://github.com/flucium/flatshell/docs/README.md)**<br>
+**[README.md](https://github.com/flucium/flatshell/blob/main/docs/README.md)**<br>
 This is the README for FlatShell. This...
 
-**[SECURITY.md](https://github.com/flucium/flatshell/docs/SECURITY.md)**<br>
+**[SECURITY.md](https://github.com/flucium/flatshell/blob/main/docs/SECURITY.md)**<br>
 This document describes the procedures for responding to vulnerabilities and other security issues discovered in FlatShell.
 
-**[TODO.md](https://github.com/flucium/flatshell/docs/TODO.md)**<br>
+**[TODO.md](https://github.com/flucium/flatshell/blob/main/docs/TODO.md)**<br>
 This document is a so-called Todo-list. It mainly lists the tasks that need to be done, the tasks that have already been completed, and the things that may be implemented in the future.
 
-**[WORKER.md](https://github.com/flucium/flatshell/docs/WORKER.md)**<br>
+**[WORKER.md](https://github.com/flucium/flatshell/blob/main/docs/WORKER.md)**<br>
 This document provides an at-a-glance overview of the task assignments within the FlatShell project.
 
 
 ## Third party
-**[thirdparty.json](https://github.com/flucium/flatshell/thirdparty/thirdparty.json)**<br>
+**[thirdparty.json](https://github.com/flucium/flatshell/blob/main/thirdparty/thirdparty.json)**<br>
 The thirdparty.json file contains licenses and other information about third-party libraries(crates) in JSON format.
 
 **Include directly**<br>

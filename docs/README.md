@@ -1,5 +1,7 @@
 # FlatShell
-**This is a work in progress and may change frequently.**
+**I am developing a very flat shell. stay tuned.**
+
+*First things first, read [/docs/A.md](https://github.com/flucium/flatshell/blob/main/docs/A.md)* .
 
 <code style="color : red"><small>This is a work in progress and may change frequently.</small></code>
 

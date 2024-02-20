@@ -138,10 +138,189 @@ fn parse_redirect(tokens: &[Token]) -> Result<flat_ast::Redirect> {
     })
 }
 
+fn parse_close_fd(token: &Token) -> Result<flat_ast::Expr> {
+    match token {
+        Token::FD(fd) => {
+            if *fd < 0 {
+                Ok(flat_ast::Expr::FD(*fd))
+            } else {
+                Err(Error::DUMMY)?
+            }
+        }
+        _ => Err(Error::DUMMY)?,
+    }
+}
+
+fn parse_fd(token: &Token) -> Result<flat_ast::Expr> {
+    match token {
+        Token::FD(fd) => Ok(flat_ast::Expr::FD(*fd)),
+        _ => Err(Error::DUMMY)?,
+    }
+}
+
+fn parse_usize(token: &Token) -> Result<flat_ast::Expr> {
+    match token {
+        Token::USize(num) => Ok(flat_ast::Expr::USize(*num)),
+        _ => Err(Error::DUMMY)?,
+    }
+}
+
+fn parse_ident(token: &Token) -> Result<flat_ast::Expr> {
+    match token {
+        Token::Ident(string) => Ok(flat_ast::Expr::Ident(string.to_string())),
+        _ => Err(Error::DUMMY)?,
+    }
+}
+
+fn parse_string(token: &Token) -> Result<flat_ast::Expr> {
+    match token {
+        Token::String(string) => Ok(flat_ast::Expr::String(string.to_string())),
+        _ => Err(Error::DUMMY)?,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /*
+        Test parse_string
+            - test_parse_string
+            - test_parse_string_with_space
+            - test_parse_string_empty
+    */
+
+    #[test]
+    fn test_parse_string() {
+        let token = Token::String("string".to_string());
+
+        let expr = parse_string(&token).unwrap();
+
+        assert_eq!(expr, flat_ast::Expr::String("string".to_string()));
+    }
+
+    #[test]
+    fn test_parse_string_with_space() {
+        let token = Token::String("string with space".to_string());
+
+        let expr = parse_string(&token).unwrap();
+
+        assert_eq!(
+            expr,
+            flat_ast::Expr::String("string with space".to_string())
+        );
+    }
+
+    #[test]
+    fn test_parse_string_empty() {
+        let token = Token::String("".to_string());
+
+        let expr = parse_string(&token).unwrap();
+
+        assert_eq!(expr, flat_ast::Expr::String("".to_string()));
+
+        assert_eq!(expr, flat_ast::Expr::String(String::new()));
+    }
+
+    /*
+        Test parse_ident
+            - test_parse_ident
+            - test_parse_ident_with_space
+            - test_parse_ident_empty
+    */
+
+    #[test]
+    fn test_parse_ident() {
+        let token = Token::Ident("ident".to_string());
+
+        let expr = parse_ident(&token).unwrap();
+
+        assert_eq!(expr, flat_ast::Expr::Ident("ident".to_string()));
+    }
+
+    #[test]
+    fn test_parse_ident_with_space() {
+        let token = Token::Ident("ident with space".to_string());
+
+        let expr = parse_ident(&token).unwrap();
+
+        assert_eq!(expr, flat_ast::Expr::Ident("ident with space".to_string()));
+    }
+
+    #[test]
+    fn test_parse_ident_empty() {
+        let token = Token::Ident("".to_string());
+
+        let expr = parse_ident(&token).unwrap();
+
+        assert_eq!(expr, flat_ast::Expr::Ident("".to_string()));
+
+        assert_eq!(expr, flat_ast::Expr::Ident(String::new()));
+    }
+
+    /*
+        Test parse_usize
+            - test_parse_usize
+            - test_parse_usize_max
+            - test_parse_usize_min
+    */
+
+    #[test]
+    fn test_parse_usize() {
+        let token = Token::USize(1);
+
+        let expr = parse_usize(&token).unwrap();
+
+        assert_eq!(expr, flat_ast::Expr::USize(1));
+    }
+
+    #[test]
+    fn test_parse_usize_max() {
+        let token = Token::USize(usize::MAX);
+
+        let expr = parse_usize(&token).unwrap();
+
+        assert_eq!(expr, flat_ast::Expr::USize(usize::MAX));
+    }
+
+    #[test]
+    fn test_parse_usize_min() {
+        let token = Token::USize(usize::MIN);
+
+        let expr = parse_usize(&token).unwrap();
+
+        assert_eq!(expr, flat_ast::Expr::USize(usize::MIN));
+    }
+
+    /*
+        Test parse_fd
+            - test_parse_fd
+            - test_parse_fd_close
+    */
+
+    #[test]
+    fn test_parse_fd() {
+        let token = Token::FD(1);
+
+        let expr = parse_fd(&token).unwrap();
+
+        assert_eq!(expr, flat_ast::Expr::FD(1));
+    }
+
+    #[test]
+    fn test_parse_fd_close() {
+        let token = Token::FD(-1);
+
+        let expr = parse_close_fd(&token).unwrap();
+
+        assert_eq!(expr, flat_ast::Expr::FD(-1));
+    }
+
+    /*
+        Test parse assign
+            - test_parse_assign
+            - test_parse_assign_string_empty
+    */
     #[test]
     fn test_parse_assign() {
         let tokens = [
@@ -157,28 +336,71 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_command() {
-        let mut tokens = [
+    fn test_parse_assign_string_empty() {
+        let tokens = [
             Token::Ident("a".to_string()),
-            Token::String("b".to_string()),
+            Token::Assign,
+            Token::String("".to_string()),
+        ];
+
+        let assign = parse_assign(&tokens).unwrap();
+
+        assert_eq!(assign.ident, flat_ast::Expr::Ident("a".to_string()));
+        assert_eq!(assign.expr, flat_ast::Expr::String("".to_string()));
+    }
+
+    /*
+        Test parse command
+            - test_parse_command
+            - test_parse_command_and_args
+    */
+
+    #[test]
+    fn test_parse_command() {
+        let mut tokens = [Token::Ident("command".to_string())];
+
+        let command = parse_command(&mut tokens).unwrap();
+
+        assert_eq!(command.expr, flat_ast::Expr::Ident("command".to_string()));
+        assert_eq!(command.args.len(), 0);
+    }
+
+    #[test]
+    fn test_parse_command_and_args() {
+        let mut tokens = [
+            Token::Ident("command".to_string()),
+            Token::String("arg1".to_string()),
+            Token::String("arg2".to_string()),
             Token::USize(1),
         ];
 
         let command = parse_command(&mut tokens).unwrap();
 
-        assert_eq!(command.expr, flat_ast::Expr::Ident("a".to_string()));
-        assert_eq!(
-            command.args,
-            vec![
-                flat_ast::Expr::String("b".to_string()),
-                flat_ast::Expr::USize(1),
-            ]
-        );
+        // assert command
+        assert_eq!(command.expr, flat_ast::Expr::Ident("command".to_string()));
+
+        // assert args
+        assert_eq!(command.args[0], flat_ast::Expr::String("arg1".to_string()));
+        assert_eq!(command.args[1], flat_ast::Expr::String("arg2".to_string()));
+        assert_eq!(command.args[2], flat_ast::Expr::USize(1));
+
+        // assert args length
+        assert_eq!(command.args.len(), 3);
     }
 
+    /*
+        Test parse redirect
+            - test_parse_redirect
+            - test_parse_redirect_left_less_to_right
+            - test_parse_redirect_left_and_right_are_fd
+            - test_parse_redirect_left_fd_to_right_string
+    */
+
     #[test]
-    fn test_parse_redirect_pattern1() {
+    fn test_parse_redirect() {
+        //
         // @1 > filename
+        //
         let tokens = [
             Token::FD(1),
             Token::Gt,
@@ -188,25 +410,40 @@ mod tests {
         let redirect = parse_redirect(&tokens).unwrap();
 
         assert_eq!(redirect.left, flat_ast::Expr::FD(1));
-        assert_eq!(redirect.right, flat_ast::Expr::String("filename".to_string()));
+
+        assert_eq!(
+            redirect.right,
+            flat_ast::Expr::String("filename".to_string())
+        );
+
         assert_eq!(redirect.operator, flat_ast::RecirectOperator::Gt);
     }
 
     #[test]
-    fn test_parse_redirect_pattern2() {
+    fn test_parse_redirect_left_less_to_right() {
+        //
         // > filename
+        //
         let tokens = [Token::Gt, Token::String("filename".to_string())];
 
         let redirect = parse_redirect(&tokens).unwrap();
 
         assert_eq!(redirect.left, flat_ast::Expr::FD(1));
-        assert_eq!(redirect.right, flat_ast::Expr::String("filename".to_string()));
+
+        assert_eq!(
+            redirect.right,
+            flat_ast::Expr::String("filename".to_string())
+        );
+
         assert_eq!(redirect.operator, flat_ast::RecirectOperator::Gt);
     }
 
     #[test]
-    fn test_parse_redirect_pattern3() {
+    fn test_parse_redirect_left_and_right_are_fd() {
+        //
         // @1 > @2
+        //
+
         let tokens = [Token::FD(1), Token::Gt, Token::FD(2)];
 
         let redirect = parse_redirect(&tokens).unwrap();
@@ -217,8 +454,11 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_redirect_pattern4() {
+    fn test_parse_redirect_left_fd_to_right_string() {
+        //
         // @1 > filename
+        //
+
         let tokens = [
             Token::FD(1),
             Token::Gt,
@@ -228,64 +468,12 @@ mod tests {
         let redirect = parse_redirect(&tokens).unwrap();
 
         assert_eq!(redirect.left, flat_ast::Expr::FD(1));
-        assert_eq!(redirect.right, flat_ast::Expr::String("filename".to_string()));
+
+        assert_eq!(
+            redirect.right,
+            flat_ast::Expr::String("filename".to_string())
+        );
+
         assert_eq!(redirect.operator, flat_ast::RecirectOperator::Gt);
     }
-
-    #[test]
-    fn test_parse_redirect_pattern5() {
-        // @1 < filename
-        let tokens = [
-            Token::FD(1),
-            Token::Lt,
-            Token::String("filename".to_string()),
-        ];
-
-        let redirect = parse_redirect(&tokens).unwrap();
-
-        assert_eq!(redirect.left, flat_ast::Expr::FD(1));
-        assert_eq!(redirect.right, flat_ast::Expr::String("filename".to_string()));
-        assert_eq!(redirect.operator, flat_ast::RecirectOperator::Lt);
-    }
-
-    #[test]
-    fn test_parse_redirect_pattern6() {
-        // < filename
-        let tokens = [Token::Lt, Token::String("filename".to_string())];
-
-        let redirect = parse_redirect(&tokens).unwrap();
-
-        assert_eq!(redirect.left, flat_ast::Expr::FD(0));
-        assert_eq!(redirect.right, flat_ast::Expr::String("filename".to_string()));
-        assert_eq!(redirect.operator, flat_ast::RecirectOperator::Lt);
-    }
-
-    #[test]
-    fn test_parse_redirect_pattern7() {
-        // @1 < @2
-        let tokens = [Token::FD(1), Token::Lt, Token::FD(2)];
-
-        let redirect = parse_redirect(&tokens).unwrap();
-
-        assert_eq!(redirect.left, flat_ast::Expr::FD(1));
-        assert_eq!(redirect.right, flat_ast::Expr::FD(2));
-        assert_eq!(redirect.operator, flat_ast::RecirectOperator::Lt);
-    }
-
-    #[test]
-    fn test_parse_redirect_pattern8() {
-        // @1 < filename
-        let tokens = [
-            Token::FD(1),
-            Token::Lt,
-            Token::String("filename".to_string()),
-        ];
-
-        let redirect = parse_redirect(&tokens).unwrap();
-
-        assert_eq!(redirect.left, flat_ast::Expr::FD(1));
-        assert_eq!(redirect.right, flat_ast::Expr::String("filename".to_string()));
-        assert_eq!(redirect.operator, flat_ast::RecirectOperator::Lt);
-    }
 }
-

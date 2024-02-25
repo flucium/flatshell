@@ -14,9 +14,10 @@ Cargo.lock
 *.pdb
 
 #
-.DS_Store
-**/.DS_Store
+.*
+**/.*
 
+!.gitignore
 
 # Added by cargo
 

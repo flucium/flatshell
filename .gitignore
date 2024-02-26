@@ -19,6 +19,8 @@ Cargo.lock
 
 !.gitignore
 
+/firedbg
+
 # Added by cargo
 
 /target

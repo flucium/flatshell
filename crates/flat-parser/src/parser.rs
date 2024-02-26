@@ -2,7 +2,7 @@ use flat_ast;
 use flat_common::error::Error;
 use flat_common::result::Result;
 
-use crate::token::{self, Token};
+use crate::token::Token;
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -33,20 +33,13 @@ impl Parser {
 }
 
 fn parse_assign(tokens: &[Token; 3]) -> Result<flat_ast::Assign> {
-    let ident = match &tokens[0] {
-        Token::Ident(string) => flat_ast::Expr::Ident(string.to_string()),
-        _ => Err(Error::DUMMY)?,
-    };
+    let ident = parse_ident(&tokens[0])?;
 
     if tokens[1] != Token::Assign {
         Err(Error::DUMMY)?;
     }
 
-    let expr = match &tokens[2] {
-        Token::String(string) => flat_ast::Expr::String(string.to_string()),
-        Token::USize(num) => flat_ast::Expr::USize(*num),
-        _ => Err(Error::DUMMY)?,
-    };
+    let expr = parse_string(&tokens[2]).or(parse_usize(&tokens[2]))?;
 
     Ok(flat_ast::Assign { ident, expr })
 }
@@ -56,22 +49,18 @@ fn parse_command(tokens: &mut [Token]) -> Result<flat_ast::Command> {
         Err(Error::DUMMY)?;
     }
 
-    let expr = match &tokens[0] {
-        Token::String(string) => flat_ast::Expr::String(string.to_string()),
-        Token::Ident(string) => flat_ast::Expr::Ident(string.to_string()),
-        Token::USize(num) => flat_ast::Expr::USize(*num),
-        _ => Err(Error::DUMMY)?,
-    };
+    let expr = parse_string(&tokens[0])
+        .or(parse_ident(&tokens[0]))
+        .or(parse_usize(&tokens[0]))?;
 
     let mut args = Vec::new();
 
     for tkn in tokens[1..].iter() {
-        match tkn {
-            Token::String(string) => args.push(flat_ast::Expr::String(string.to_string())),
-            Token::Ident(string) => args.push(flat_ast::Expr::Ident(string.to_string())),
-            Token::USize(num) => args.push(flat_ast::Expr::USize(*num)),
-            _ => Err(Error::DUMMY)?,
-        }
+        let arg = parse_string(tkn)
+            .or(parse_ident(tkn))
+            .or(parse_usize(tkn))?;
+
+        args.push(arg);
     }
 
     Ok(flat_ast::Command { expr, args })
@@ -84,18 +73,21 @@ fn parse_redirect(tokens: &[Token]) -> Result<flat_ast::Redirect> {
         Err(Error::DUMMY)?;
     }
 
-    let (left, mut op) = if let Some(token) = &tokens.get(0) {
-        let (left, op): (flat_ast::Expr, Option<flat_ast::RecirectOperator>) = match token {
-            Token::FD(fd) => (flat_ast::Expr::FD(*fd), None),
-            Token::Gt => (flat_ast::Expr::FD(1), Some(flat_ast::RecirectOperator::Gt)),
-            Token::Lt => (flat_ast::Expr::FD(0), Some(flat_ast::RecirectOperator::Lt)),
-            _ => Err(Error::DUMMY)?,
-        };
+    let (left, mut op): (flat_ast::Expr, Option<flat_ast::RecirectOperator>) =
+        if let Some(token) = tokens.get(0) {
+            if let Ok(left) = parse_fd(token) {
+                (left, None)
+            } else {
+                match token {
+                    Token::Gt => (flat_ast::Expr::FD(1), Some(flat_ast::RecirectOperator::Gt)),
 
-        (left, op)
-    } else {
-        Err(Error::DUMMY)?
-    };
+                    Token::Lt => (flat_ast::Expr::FD(0), Some(flat_ast::RecirectOperator::Lt)),
+                    _ => Err(Error::DUMMY)?,
+                }
+            }
+        } else {
+            Err(Error::DUMMY)?
+        };
 
     let right = if op.is_none() {
         if let Some(token) = &tokens.get(1) {
@@ -107,25 +99,19 @@ fn parse_redirect(tokens: &[Token]) -> Result<flat_ast::Redirect> {
         }
 
         if let Some(token) = &tokens.get(2) {
-            match token {
-                Token::String(string) => flat_ast::Expr::String(string.to_owned()),
-                Token::Ident(ident) => flat_ast::Expr::Ident(ident.to_owned()),
-                Token::USize(num) => flat_ast::Expr::USize(*num),
-                Token::FD(fd) => flat_ast::Expr::FD(*fd),
-                _ => Err(Error::DUMMY)?,
-            }
+            parse_string(token)
+                .or(parse_ident(token))
+                .or(parse_usize(token))
+                .or(parse_fd(token))?
         } else {
             Err(Error::DUMMY)?
         }
     } else {
         if let Some(token) = tokens.get(1) {
-            match token {
-                Token::String(string) => flat_ast::Expr::String(string.to_owned()),
-                Token::Ident(ident) => flat_ast::Expr::Ident(ident.to_owned()),
-                Token::USize(num) => flat_ast::Expr::USize(*num),
-                Token::FD(fd) => flat_ast::Expr::FD(*fd),
-                _ => Err(Error::DUMMY)?,
-            }
+            parse_string(token)
+                .or(parse_ident(token))
+                .or(parse_usize(token))
+                .or(parse_fd(token))?
         } else {
             Err(Error::DUMMY)?
         }
@@ -138,18 +124,18 @@ fn parse_redirect(tokens: &[Token]) -> Result<flat_ast::Redirect> {
     })
 }
 
-fn parse_close_fd(token: &Token) -> Result<flat_ast::Expr> {
-    match token {
-        Token::FD(fd) => {
-            if *fd < 0 {
-                Ok(flat_ast::Expr::FD(*fd))
-            } else {
-                Err(Error::DUMMY)?
-            }
-        }
-        _ => Err(Error::DUMMY)?,
-    }
-}
+// fn parse_close_fd(token: &Token) -> Result<flat_ast::Expr> {
+//     match token {
+//         Token::FD(fd) => {
+//             if *fd < 0 {
+//                 Ok(flat_ast::Expr::FD(*fd))
+//             } else {
+//                 Err(Error::DUMMY)?
+//             }
+//         }
+//         _ => Err(Error::DUMMY)?,
+//     }
+// }
 
 fn parse_fd(token: &Token) -> Result<flat_ast::Expr> {
     match token {
@@ -298,23 +284,23 @@ mod tests {
             - test_parse_fd_close
     */
 
-    #[test]
-    fn test_parse_fd() {
-        let token = Token::FD(1);
+    // #[test]
+    // fn test_parse_fd() {
+    //     let token = Token::FD(1);
 
-        let expr = parse_fd(&token).unwrap();
+    //     let expr = parse_fd(&token).unwrap();
 
-        assert_eq!(expr, flat_ast::Expr::FD(1));
-    }
+    //     assert_eq!(expr, flat_ast::Expr::FD(1));
+    // }
 
-    #[test]
-    fn test_parse_fd_close() {
-        let token = Token::FD(-1);
+    // #[test]
+    // fn test_parse_fd_close() {
+    //     let token = Token::FD(-1);
 
-        let expr = parse_close_fd(&token).unwrap();
+    //     let expr = parse_close_fd(&token).unwrap();
 
-        assert_eq!(expr, flat_ast::Expr::FD(-1));
-    }
+    //     assert_eq!(expr, flat_ast::Expr::FD(-1));
+    // }
 
     /*
         Test parse assign

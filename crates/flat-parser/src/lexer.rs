@@ -56,6 +56,49 @@ impl Lexer {
                     break;
                 }
 
+                '+' => {
+                    self.position += 1;
+                    tkn = Token::Plus;
+                    break;
+                }
+
+                '-' => {
+                    if let Some(peek_ch) = self.input.get(self.position + 1) {
+                        if peek_ch.is_whitespace() == false {
+                            
+                            let string = self.read_string();
+                            
+                            
+                            if let Ok(n) = string.parse::<isize>() {
+                                tkn = Token::ISize(n);
+                                break;
+                            }else{
+                                tkn = Token::String(string);
+                                break;
+                            }
+
+                            
+                        }
+                    }
+
+                    self.position += 1;
+                    tkn = Token::Minus;
+                    break;
+                    
+                }
+
+                '*' => {
+                    self.position += 1;
+                    tkn = Token::Star;
+                    break;
+                }
+
+                '/' => {
+                    self.position += 1;
+                    tkn = Token::Slash;
+                    break;
+                }
+
                 '&' => {
                     self.position += 1;
                     tkn = Token::Ampersand;
@@ -75,6 +118,18 @@ impl Lexer {
 
                     tkn = Token::Dollar;
 
+                    break;
+                }
+
+                '(' => {
+                    self.position += 1;
+                    tkn = Token::LeftParen;
+                    break;
+                }
+
+                ')' => {
+                    self.position += 1;
+                    tkn = Token::RightParen;
                     break;
                 }
 
@@ -100,6 +155,7 @@ impl Lexer {
                     tkn = Token::String("@".to_string());
                 }
 
+               
                 '0'..='9' => {
                     let string = self.read_string();
 
@@ -325,6 +381,102 @@ mod tests {
     }
 
     /*
+        Test lexer with plus
+        - test_lexer_plus
+        - test_lexer_plus_with_space
+    */
+
+    #[test]
+    fn test_lexer_plus() {
+        let input = "+";
+
+        let mut lexer = Lexer::new(input);
+
+        assert_eq!(lexer.next().unwrap(), Token::Plus);
+    }
+
+    #[test]
+    fn test_lexer_plus_with_space() {
+        let input = " + ";
+
+        let mut lexer = Lexer::new(input);
+
+        assert_eq!(lexer.next().unwrap(), Token::Plus);
+    }
+
+    /*
+        Test lexer with minus
+        - test_lexer_minus
+        - test_lexer_minus_with_space
+    */
+
+    #[test]
+    fn test_lexer_minus() {
+        let input = "-";
+
+        let mut lexer = Lexer::new(input);
+
+        assert_eq!(lexer.next().unwrap(), Token::Minus);
+    }
+
+    #[test]
+    fn test_lexer_minus_with_space() {
+        let input = " - ";
+
+        let mut lexer = Lexer::new(input);
+
+        assert_eq!(lexer.next().unwrap(), Token::Minus);
+    }
+
+    /*
+        Test lexer with star
+        - test_lexer_star
+        - test_lexer_star_with_space
+    */
+
+    #[test]
+    fn test_lexer_star() {
+        let input = "*";
+
+        let mut lexer = Lexer::new(input);
+
+        assert_eq!(lexer.next().unwrap(), Token::Star);
+    }
+
+    #[test]
+    fn test_lexer_star_with_space() {
+        let input = " * ";
+
+        let mut lexer = Lexer::new(input);
+
+        assert_eq!(lexer.next().unwrap(), Token::Star);
+    }
+
+    /*
+        Test lexer with slash
+        - test_lexer_slash
+        - test_lexer_slash_with_space
+    */
+
+    #[test]
+    fn test_lexer_slash() {
+        let input = "/";
+
+        let mut lexer = Lexer::new(input);
+
+        assert_eq!(lexer.next().unwrap(), Token::Slash);
+    }
+
+    #[test]
+    fn test_lexer_slash_with_space() {
+        let input = " / ";
+
+        let mut lexer = Lexer::new(input);
+
+        assert_eq!(lexer.next().unwrap(), Token::Slash);
+    }
+
+    /*
         Test lexer with ampersand
         - test_lexer_ampersand
         - test_lexer_ampersand_with_space
@@ -346,6 +498,55 @@ mod tests {
         let mut lexer = Lexer::new(input);
 
         assert_eq!(lexer.next().unwrap(), Token::Ampersand);
+    }
+
+
+    /*
+        Test lexer with left paren
+        - test_lexer_left_paren
+        - test_lexer_left_paren_with_space
+    */
+
+    #[test]
+    fn test_lexer_left_paren() {
+        let input = "(";
+
+        let mut lexer = Lexer::new(input);
+
+        assert_eq!(lexer.next().unwrap(), Token::LeftParen);
+    }
+
+    #[test]
+    fn test_lexer_left_paren_with_space() {
+        let input = " ( ";
+
+        let mut lexer = Lexer::new(input);
+
+        assert_eq!(lexer.next().unwrap(), Token::LeftParen);
+    }
+
+    /*
+        Test lexer with right paren
+        - test_lexer_right_paren
+        - test_lexer_right_paren_with_space
+    */
+
+    #[test]
+    fn test_lexer_right_paren() {
+        let input = ")";
+
+        let mut lexer = Lexer::new(input);
+
+        assert_eq!(lexer.next().unwrap(), Token::RightParen);
+    }
+
+    #[test]
+    fn test_lexer_right_paren_with_space() {
+        let input = " ) ";
+
+        let mut lexer = Lexer::new(input);
+
+        assert_eq!(lexer.next().unwrap(), Token::RightParen);
     }
 
     /*
@@ -418,6 +619,29 @@ mod tests {
         let mut lexer = Lexer::new(input);
 
         assert_eq!(lexer.next().unwrap(), Token::USize(123));
+    }
+
+    /*
+        Test lexer with isize
+        - test_lexer_isize
+        - test_lexer_isize_with_space
+    */
+    #[test]
+    fn test_lexer_isize() {
+        let input = "-123";
+
+        let mut lexer = Lexer::new(input);
+
+        assert_eq!(lexer.next().unwrap(), Token::ISize(-123));
+    }
+
+    #[test]
+    fn test_lexer_isize_with_space() {
+        let input = " -123 ";
+
+        let mut lexer = Lexer::new(input);
+
+        assert_eq!(lexer.next().unwrap(), Token::ISize(-123));
     }
 
     /*
@@ -555,7 +779,7 @@ mod tests {
     #[test]
     fn test_lexer_mixed() {
         let input = r#"
-            $hello "world" 123 456 @789
+            $hello "world" 123 456 -10 @789 () 0 ) ( + - * /
         "#;
 
         let mut lexer = Lexer::new(input);
@@ -565,7 +789,17 @@ mod tests {
             Token::String("world".to_string()),
             Token::USize(123),
             Token::USize(456),
+            Token::ISize(-10),
             Token::FD(789),
+            Token::LeftParen,
+            Token::RightParen,
+            Token::USize(0),
+            Token::RightParen,
+            Token::LeftParen,
+            Token::Plus,
+            Token::Minus,
+            Token::Star,
+            Token::Slash,
             Token::EOF,
         ];
 

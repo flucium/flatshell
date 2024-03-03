@@ -15,6 +15,16 @@ impl Lexer {
         }
     }
 
+    pub fn tokenize(&mut self) -> Vec<Token> {
+        let mut tokens = Vec::new();
+
+        while let Some(token) = self.next() {
+            tokens.push(token);
+        }
+
+        tokens
+    }
+
     fn read(&mut self) -> Token {
         let mut tkn = Token::EOF;
 
@@ -56,7 +66,6 @@ impl Lexer {
                     break;
                 }
 
-
                 '&' => {
                     self.position += 1;
                     tkn = Token::Ampersand;
@@ -78,7 +87,6 @@ impl Lexer {
 
                     break;
                 }
-
 
                 '@' => {
                     let origin = self.position;
@@ -102,7 +110,6 @@ impl Lexer {
                     tkn = Token::String("@".to_string());
                 }
 
-               
                 '0'..='9' => {
                     let string = self.read_string();
 
@@ -446,7 +453,6 @@ mod tests {
 
         assert_eq!(lexer.next().unwrap(), Token::Ampersand);
     }
-
 
     /*
         Test lexer with left paren

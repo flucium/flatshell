@@ -1,9 +1,11 @@
 mod statement;
 mod expr;
+mod pipe;
 
 //pub use
 pub use statement::*;
 pub use expr::*;
+pub use pipe::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FlatAst {

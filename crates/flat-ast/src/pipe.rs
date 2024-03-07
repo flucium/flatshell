@@ -1,12 +1,12 @@
-use super::Command;
 use serde::Serialize;
+use super::Command;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Pipe {
     pub commands: Vec<Command>,
 }
 
-impl Pipe {
+impl Pipe{
     pub fn to_json(&self, is_pretty: bool) -> String {
         if is_pretty {
             serde_json::to_string_pretty(&self).unwrap()

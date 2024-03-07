@@ -1,42 +1,118 @@
 use flat_ast;
-use flat_common::error::Error;
+use flat_common::error::{Error, ErrorKind};
 use flat_common::result::Result;
 
 use crate::token::Token;
 
 pub struct Parser {
     tokens: Vec<Token>,
-    position: usize,
-    ast: flat_ast::FlatAst,
+    // ast: flat_ast::FlatAst,
 }
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Parser {
-        Parser {
-            tokens,
-            position: 0,
-            ast: flat_ast::FlatAst::new(),
-        }
+        // let ast = flat_ast::FlatAst::Semicolon(Vec::new());
+        Parser { tokens }
     }
+    /*
+        This is a draft!!!
+        This is a draft!!!
+        This is a draft!!!
+        This is a draft!!!
+        This is a draft!!!
+        This is a draft!!!
+    */    
+    pub fn parse(&mut self) -> Result<flat_ast::FlatAst> {
+        if self.tokens.last() == Some(&Token::EOF) {
+            self.tokens.pop().unwrap();
+        } else {
+            Err(Error::DUMMY)?
+        }
 
-    pub fn parse(&mut self) {
-        let start = self.position;
+        let mut semicolon_node = Vec::new();
 
-        while let Some(tkn) = self.tokens.get(self.position) {
-            self.position += 1;
+        let entries = split_semicolon(&mut self.tokens).unwrap();
 
-            if tkn == &Token::EOF {
-                break;
+        for mut tokens in entries {
+            if tokens.contains(&Token::Pipe) {
+                semicolon_node.push(flat_ast::FlatAst::Pipe(parse_pipe(&mut tokens)?));
+            } else if tokens.len() == 3 && tokens.contains(&Token::Assign) {
+                semicolon_node.push(flat_ast::FlatAst::Statement(flat_ast::Statement::Assign(
+                    parse_assign(&TryInto::<[Token; 3]>::try_into(tokens).unwrap())?,
+                )));
+            } else {
+                semicolon_node.push(flat_ast::FlatAst::Statement(flat_ast::Statement::Command(
+                    parse_command(&mut tokens)?,
+                )));
+            }
+        }
+
+        Ok(flat_ast::FlatAst::Semicolon(semicolon_node))
+    }
+}
+
+fn split_semicolon(tokens: &mut [Token]) -> Result<Vec<Vec<Token>>> {
+    let mut commands = Vec::new();
+
+    let mut command_tokens = Vec::new();
+
+    for token in tokens.iter() {
+        match token {
+            Token::Semicolon => {
+                commands.push(command_tokens);
+
+                command_tokens = Vec::new();
+            }
+            _ => {
+                command_tokens.push(token.to_owned());
             }
         }
     }
+
+    if !command_tokens.is_empty() {
+        commands.push(command_tokens);
+    }
+
+    Ok(commands)
+}
+
+fn parse_pipe(tokens: &mut [Token]) -> Result<flat_ast::Pipe> {
+    let mut commands = Vec::new();
+
+    let mut command_tokens = Vec::new();
+
+    for token in tokens.iter() {
+        match token {
+            Token::Pipe => {
+                let command = parse_command(&mut command_tokens)?;
+
+                commands.push(command);
+
+                command_tokens = Vec::new();
+            }
+            _ => {
+                command_tokens.push(token.to_owned());
+            }
+        }
+    }
+
+    if !command_tokens.is_empty() {
+        let command = parse_command(&mut command_tokens)?;
+
+        commands.push(command);
+    }
+
+    Ok(flat_ast::Pipe { commands })
 }
 
 fn parse_assign(tokens: &[Token; 3]) -> Result<flat_ast::Assign> {
     let ident = parse_ident(&tokens[0])?;
 
     if tokens[1] != Token::Assign {
-        Err(Error::DUMMY)?;
+        Err(Error::new(
+            ErrorKind::SyntaxError,
+            "Expected an assignment operator",
+        ))?;
     }
 
     let expr = parse_string(&tokens[2]).or(parse_usize(&tokens[2]))?;
@@ -137,31 +213,41 @@ fn parse_redirect(tokens: &[Token]) -> Result<flat_ast::Redirect> {
 //     }
 // }
 
+/// Parse a file descriptor literal
 fn parse_fd(token: &Token) -> Result<flat_ast::Expr> {
     match token {
         Token::FD(fd) => Ok(flat_ast::Expr::FD(*fd)),
-        _ => Err(Error::DUMMY)?,
+        _ => Err(Error::new(
+            ErrorKind::SyntaxError,
+            "Expected a file descriptor literal",
+        ))?,
     }
 }
 
+/// Parse a usize literal
 fn parse_usize(token: &Token) -> Result<flat_ast::Expr> {
     match token {
         Token::USize(num) => Ok(flat_ast::Expr::USize(*num)),
-        _ => Err(Error::DUMMY)?,
+        _ => Err(Error::new(ErrorKind::SyntaxError, "Expected a usize literal"))?,
     }
 }
 
+/// Parse an identifier
 fn parse_ident(token: &Token) -> Result<flat_ast::Expr> {
     match token {
         Token::Ident(string) => Ok(flat_ast::Expr::Ident(string.to_string())),
-        _ => Err(Error::DUMMY)?,
+        _ => Err(Error::new(
+            ErrorKind::SyntaxError,
+            "Expected a identifier",
+        ))?,
     }
 }
 
+/// Parse a string literal
 fn parse_string(token: &Token) -> Result<flat_ast::Expr> {
     match token {
         Token::String(string) => Ok(flat_ast::Expr::String(string.to_string())),
-        _ => Err(Error::DUMMY)?,
+        _ => Err(Error::new(ErrorKind::SyntaxError, "Expected a string literal"))?,
     }
 }
 
@@ -284,14 +370,14 @@ mod tests {
             - test_parse_fd_close
     */
 
-    // #[test]
-    // fn test_parse_fd() {
-    //     let token = Token::FD(1);
+    #[test]
+    fn test_parse_fd() {
+        let token = Token::FD(1);
 
-    //     let expr = parse_fd(&token).unwrap();
+        let expr = parse_fd(&token).unwrap();
 
-    //     assert_eq!(expr, flat_ast::Expr::FD(1));
-    // }
+        assert_eq!(expr, flat_ast::Expr::FD(1));
+    }
 
     // #[test]
     // fn test_parse_fd_close() {
@@ -461,5 +547,38 @@ mod tests {
         );
 
         assert_eq!(redirect.operator, flat_ast::RecirectOperator::Gt);
+    }
+
+    #[test]
+    fn test_parse_pipe() {
+        //
+        // ls | cat -b
+        //
+
+        let mut tokens = vec![
+            Token::Ident("ls".to_string()),
+            Token::Pipe,
+            Token::Ident("cat".to_string()),
+            Token::String("-b".to_string()),
+        ];
+
+        let pipe = parse_pipe(&mut tokens).unwrap();
+
+        assert_eq!(pipe.commands.len(), 2);
+
+        assert_eq!(
+            pipe.commands[0].expr,
+            flat_ast::Expr::Ident("ls".to_string())
+        );
+
+        assert_eq!(
+            pipe.commands[1].expr,
+            flat_ast::Expr::Ident("cat".to_string())
+        );
+
+        assert_eq!(
+            pipe.commands[1].args[0],
+            flat_ast::Expr::String("-b".to_string())
+        );
     }
 }

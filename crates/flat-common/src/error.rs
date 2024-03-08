@@ -1,5 +1,5 @@
 /// Error kind
-#[derive(Debug)]
+#[derive(Debug,PartialEq)]
 pub enum ErrorKind {
     Dummy,
     Internal,
@@ -11,7 +11,7 @@ pub enum ErrorKind {
 }
 
 /// Error
-#[derive(Debug)]
+#[derive(Debug,PartialEq)]
 pub struct Error {
     kind: ErrorKind,
     // message: &'static str,

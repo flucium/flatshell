@@ -25,6 +25,32 @@ pub enum Token {
     FD(i32),        // 0 ~ 9 with negative
 }
 
+impl Token{
+    pub fn len(&self)->usize{
+        match self {
+            Token::EOF => 0,
+            Token::Pipe => 1,
+            Token::Assign => 1,
+            Token::Gt => 1,
+            Token::Lt => 1,
+            // Token::Plus => 1,
+            // Token::Minus => 1,
+            // Token::Star => 1,
+            // Token::Slash => 1,
+            Token::Semicolon => 1,
+            Token::Dollar => 1,
+            Token::Ampersand => 1,
+            // Token::LeftParen => 1,
+            // Token::RightParen => 1,
+            Token::String(v) => v.len(),
+            Token::Ident(v) => v.len(),
+            Token::USize(v) => v.to_string().len(),
+            // Token::ISize(v) => v.to_string().len(),
+            Token::FD(v) => v.to_string().len(),
+        }
+    }
+}
+
 impl Display for Token {
     fn fmt(&self, tkn: &mut Formatter) -> Result {
         match self {

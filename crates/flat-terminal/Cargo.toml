@@ -8,3 +8,6 @@ edition = "2021"
 [dependencies]
 # https://github.com/rust-lang/libc/
 libc = "0.2.138"
+
+# Internal
+flat-common = {path = "../flat-common", version="0.0.1"}

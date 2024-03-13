@@ -6,9 +6,9 @@ use flat_common::{
     result::Result,
 };
 
+use libc::exit;
 use std::io;
 use std::io::Write;
-use std::process::exit;
 
 pub struct Terminal {
     termios: libc::termios,
@@ -56,8 +56,11 @@ impl Terminal {
 
             match ch {
                 3 => {
+                    stdout.write_all(b"\n").map_err(|_| {
+                        Error::new(ErrorKind::Other, "Failed to write to stdout")
+                    })?;
                     self.unset_raw_mode();
-                    exit(0);
+                    unsafe { exit(0) };
                 }
 
                 // Enter

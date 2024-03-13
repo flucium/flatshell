@@ -1,191 +1,267 @@
 use super::ascii;
+use super::line::*;
+use super::History;
+use flat_common::{
+    error::{Error, ErrorKind},
+    result::Result,
+};
+
 use std::io;
 use std::io::Write;
 use std::process::exit;
 
-pub const TERMINAL_BUFFER_SIZE: usize = 8192; // 8KB
-
-pub const PROMPT_BUFFER_SIZE: usize = 32; // 32 bytes
-
 pub struct Terminal {
-    buffer: Vec<u8>,
-    buffer_index: usize,
+    termios: libc::termios,
     prompt: String,
-    origin_termios: libc::termios,
+    history: Option<History>,
 }
 
 impl Terminal {
-    /// Create new terminal
     pub fn new() -> Self {
         Self {
-            buffer: Vec::with_capacity(TERMINAL_BUFFER_SIZE),
-            buffer_index: 0,
-            prompt: String::with_capacity(PROMPT_BUFFER_SIZE),
-            origin_termios: termios(),
+            termios: termios(),
+            prompt: String::new(),
+            history: None,
         }
     }
 
-    /// Set prompt
-    ///
-    /// # Example
-    /// ```
-    /// let mut t = flat_terminal::Terminal::new();
-    ///
-    /// t.set_prompt("#".to_owned());
-    /// ```
-    pub fn set_prompt(&mut self, string: &str) {
-        self.prompt = string.into();
+    pub fn set_prompt(&mut self, prompt: impl Into<String>) {
+        self.prompt = prompt.into();
     }
 
-    /// Read line
-    ///
-    /// # Example
-    /// ```
-    /// let mut t = flat_terminal::Terminal::new();
-    ///
-    /// loop{
-    ///     
-    ///     t.set_prompt("#");
-    ///     
-    ///     let string = t.read_line().unwrap();
-    ///     println!("{string}");
-    /// }
-    /// ```
-    pub fn read_line(&mut self) -> io::Result<String> {
+    pub fn set_history(&mut self, history: History) {
+        self.history = Some(history);
+    }
+
+    pub fn read_line(&mut self) -> Result<String> {
         self.set_raw_mode();
 
-        self.init_buffer()?;
+        let mut stdout = io::stdout().lock();
 
-        let mut stdout = io::BufWriter::new(io::stdout().lock());
+        let mut line = Line::new();
+
+        stdout
+            .write_all(format!("{}", self.prompt).as_bytes())
+            .map_err(|_| Error::new(ErrorKind::Other, "Failed to write to stdout"))?;
 
         loop {
-            stdout.flush()?;
+            stdout
+                .flush()
+                .map_err(|_| Error::new(ErrorKind::Other, "Failed to flush stdout"))?;
 
-            let ch = match getch() {
-                None => continue,
+            let ch = match get_char() {
                 Some(ch) => ch,
+                None => continue,
             };
 
             match ch {
-                0 => continue,
-
-                // Ctrl + C
                 3 => {
                     self.unset_raw_mode();
                     exit(0);
                 }
 
                 // Enter
-                10 => break,
+                10 => {
+                    break;
+                }
 
-                // Special keys
                 27 => {
-                    if getch().unwrap_or(0) != 91 {
+                    if get_char().unwrap_or(0) != 91 {
                         continue;
                     }
 
                     // Arrow keys
-                    match getch().unwrap_or(0) {
-                        //up
-                        65 => {}
+                    match get_char().unwrap_or(0) {
+                        // Up
+                        65 => {
+                            if let Some(history) = self.history.as_mut() {
+                                if let Some(entry) = history.prev() {
+                                    line.clear();
 
-                        //down
-                        66 => {}
+                                    for b in entry.as_bytes() {
+                                        line.insert(*b);
+                                    }
 
-                        //right
+                                    stdout
+                                        .write_all(
+                                            format!("{}", ascii::Cursor::ClearLine.get_esc_code())
+                                                .as_bytes(),
+                                        )
+                                        .map_err(|_| {
+                                            Error::new(
+                                                ErrorKind::Other,
+                                                "Failed to write to stdout",
+                                            )
+                                        })?;
+
+                                    stdout
+                                        .write_all(
+                                            format!("\r{}{}", self.prompt, line.to_string())
+                                                .as_bytes(),
+                                        )
+                                        .map_err(|_| {
+                                            Error::new(
+                                                ErrorKind::Other,
+                                                "Failed to write to stdout",
+                                            )
+                                        })?;
+                                }
+                            }
+                        }
+
+                        // Down
+                        66 => {
+                            if let Some(history) = self.history.as_mut() {
+                                if let Some(entry) = history.next() {
+                                    line.clear();
+
+                                    for b in entry.as_bytes() {
+                                        line.insert(*b);
+                                    }
+
+                                    stdout
+                                        .write_all(
+                                            format!("{}", ascii::Cursor::ClearLine.get_esc_code())
+                                                .as_bytes(),
+                                        )
+                                        .map_err(|_| {
+                                            Error::new(
+                                                ErrorKind::Other,
+                                                "Failed to write to stdout",
+                                            )
+                                        })?;
+
+                                    stdout
+                                        .write_all(
+                                            format!("\r{}{}", self.prompt, line.to_string())
+                                                .as_bytes(),
+                                        )
+                                        .map_err(|_| {
+                                            Error::new(
+                                                ErrorKind::Other,
+                                                "Failed to write to stdout",
+                                            )
+                                        })?;
+                                }
+                            }
+                        }
+
+                        // Right
                         67 => {
-                            if self.buffer_index < self.buffer.len() {
-                                self.buffer_index += 1;
-                                stdout.write_all(
-                                    format!("{}", ascii::Cursor::Right.get_esc_code()).as_bytes(),
-                                )?;
+                            if line.position() < line.len() {
+                                line.right();
+
+                                stdout
+                                    .write_all(
+                                        format!("{}", ascii::Cursor::Right.get_esc_code())
+                                            .as_bytes(),
+                                    )
+                                    .map_err(|_| {
+                                        Error::new(ErrorKind::Other, "Failed to write to stdout")
+                                    })?;
                             }
                         }
 
-                        //left
+                        // Left
                         68 => {
-                            if self.buffer_index > 0 {
-                                stdout.write_all(
-                                    format!("{}", ascii::Cursor::Left.get_esc_code()).as_bytes(),
-                                )?;
-                                self.buffer_index -= 1;
+                            if line.position() > 0 {
+                                stdout
+                                    .write_all(
+                                        format!("{}", ascii::Cursor::Left.get_esc_code())
+                                            .as_bytes(),
+                                    )
+                                    .map_err(|_| {
+                                        Error::new(ErrorKind::Other, "Failed to write to stdout")
+                                    })?;
+
+                                line.left();
                             }
                         }
+
                         _ => continue,
                     }
                 }
 
                 // Backspace
                 127 => {
-                    if self.buffer_index <= 0 {
+                    if line.position() <= 0 {
                         continue;
                     }
 
-                    self.buffer_index -= 1;
-
-                    for i in 0..self.buffer.len() {
+                    for i in 0..line.len() {
                         if i != 0 {
-                            stdout.write_all(
-                                format!("{}", ascii::Cursor::Backspace.get_esc_code()).as_bytes(),
-                            )?;
+                            stdout
+                                .write_all(
+                                    format!("{}", ascii::Cursor::Backspace.get_esc_code())
+                                        .as_bytes(),
+                                )
+                                .map_err(|_| {
+                                    Error::new(ErrorKind::Other, "Failed to write to stdout")
+                                })?;
                         }
                     }
 
-                    stdout.write_all(
-                        format!("\r{}{}", self.prompt, String::from_utf8_lossy(&self.buffer))
-                            .as_bytes(),
-                    )?;
+                    stdout
+                        .write_all(format!("\r{}{}", self.prompt, line.to_string()).as_bytes())
+                        .map_err(|_| Error::new(ErrorKind::Other, "Failed to write to stdout"))?;
 
-                    self.buffer.remove(self.buffer_index);
+                    line.backspace();
 
-                    stdout.write_all(
-                        format!("{}", ascii::Cursor::Backspace.get_esc_code()).as_bytes(),
-                    )?;
-
-                    stdout.write_all(
-                        format!(
-                            "\r{}{}",
-                            self.prompt,
-                            String::from_utf8_lossy(&self.buffer).to_string()
+                    stdout
+                        .write_all(
+                            format!("{}", ascii::Cursor::Backspace.get_esc_code()).as_bytes(),
                         )
-                        .as_bytes(),
-                    )?;
+                        .map_err(|_| Error::new(ErrorKind::Other, "Failed to write to stdout"))?;
 
-                    if self.buffer_index < self.buffer.len() {
-                        let move_position = self.prompt.len() + self.buffer_index - 1;
-                        stdout.write_all(
-                            format!("{}", ascii::Cursor::Move(move_position).get_esc_code())
-                                .as_bytes(),
-                        )?;
+                    stdout
+                        .write_all(format!("\r{}{}", self.prompt, line.to_string(),).as_bytes())
+                        .map_err(|_| Error::new(ErrorKind::Other, "Failed to write to stdout"))?;
+
+                    if line.position() < line.len() {
+                        let move_position = self.prompt.len() + line.position() - 1;
+
+                        stdout
+                            .write_all(
+                                format!("{}", ascii::Cursor::Move(move_position).get_esc_code())
+                                    .as_bytes(),
+                            )
+                            .map_err(|_| {
+                                Error::new(ErrorKind::Other, "Failed to write to stdout")
+                            })?;
                     }
                 }
 
-                // Insert character and print buffer
                 _ => {
-                    self.buffer.insert(self.buffer_index, ch);
+                    line.insert(ch);
 
-                    self.buffer_index += 1;
-
-                    for i in 0..self.buffer.len() {
+                    for i in 0..line.len() {
                         if i != 0 {
-                            stdout.write_all(
-                                format!("{}", ascii::Cursor::Backspace.get_esc_code()).as_bytes(),
-                            )?;
+                            stdout
+                                .write_all(
+                                    format!("{}", ascii::Cursor::Backspace.get_esc_code())
+                                        .as_bytes(),
+                                )
+                                .map_err(|_| {
+                                    Error::new(ErrorKind::Other, "Failed to write to stdout")
+                                })?;
                         }
                     }
 
-                    stdout.write_all(
-                        format!("\r{}{}", self.prompt, String::from_utf8_lossy(&self.buffer))
-                            .as_bytes(),
-                    )?;
+                    stdout
+                        .write_all(format!("\r{}{}", self.prompt, line.to_string()).as_bytes())
+                        .map_err(|_| Error::new(ErrorKind::Other, "Failed to write to stdout"))?;
 
-                    if self.buffer_index < self.buffer.len() {
-                        let move_position = self.prompt.len() + self.buffer_index;
+                    if line.position() < line.len() {
+                        let move_position = line.len() + line.position();
 
-                        stdout.write_all(
-                            format!("{}", ascii::Cursor::Move(move_position).get_esc_code())
-                                .as_bytes(),
-                        )?;
+                        stdout
+                            .write_all(
+                                format!("{}", ascii::Cursor::Move(move_position).get_esc_code())
+                                    .as_bytes(),
+                            )
+                            .map_err(|_| {
+                                Error::new(ErrorKind::Other, "Failed to write to stdout")
+                            })?;
                     }
                 }
             }
@@ -193,39 +269,28 @@ impl Terminal {
 
         self.unset_raw_mode();
 
-        stdout.write_all(b"\n")?;
-
-        Ok(String::from_utf8_lossy(&self.buffer).to_string())
-    }
-
-    /// Initialize buffer
-    fn init_buffer(&mut self) -> io::Result<()> {
-        let mut stdout = io::BufWriter::new(io::stdout().lock());
-
-        self.buffer.clear();
-
-        self.buffer_index = 0;
-
-        if self.buffer_index <= self.buffer.len() {
-            let move_position = self.prompt.len() + 1;
-            stdout.write_all(
-                format!(
-                    "\r{}{}",
-                    self.prompt,
-                    ascii::Cursor::Move(move_position).get_esc_code()
-                )
-                .as_bytes(),
-            )?;
+        if let Some(history) = self.history.as_mut() {
+            history.push(line.to_string());
         }
 
-        Ok(())
+        stdout
+            .write_all(b"\n")
+            .map_err(|_| Error::new(ErrorKind::Other, "Failed to write to stdout"))?;
+
+        stdout
+            .flush()
+            .map_err(|_| Error::new(ErrorKind::Other, "Failed to flush stdout"))?;
+
+        let line = line.to_string();
+
+        Ok(line)
     }
 
     // Enable raw mode
     fn set_raw_mode(&mut self) {
-        unsafe { libc::tcgetattr(0, &mut self.origin_termios) };
+        unsafe { libc::tcgetattr(0, &mut self.termios) };
 
-        let mut raw = self.origin_termios;
+        let mut raw = self.termios;
 
         raw.c_lflag = raw.c_lflag & !(libc::ICANON | libc::ECHO | libc::IEXTEN | libc::ISIG);
         // raw.c_lflag = raw.c_lflag & !(libc::ICANON | libc::ECHO );
@@ -243,13 +308,13 @@ impl Terminal {
     // Disable raw mode
     fn unset_raw_mode(&mut self) {
         unsafe {
-            libc::tcsetattr(0, 0, &self.origin_termios);
+            libc::tcsetattr(0, 0, &self.termios);
         }
     }
 }
 
 #[inline]
-fn getch() -> Option<u8> {
+fn get_char() -> Option<u8> {
     let code = [0; 1];
 
     let n = unsafe { libc::read(0, code.as_ptr() as *mut libc::c_void, 1) };
@@ -262,10 +327,11 @@ fn getch() -> Option<u8> {
 }
 
 #[inline]
-#[cfg(target_os = "macos")]
+#[cfg(target_os = "linux")]
 fn termios() -> libc::termios {
     libc::termios {
-        c_cc: [0u8; 20],
+        c_line: 0,
+        c_cc: [0; 32],
         c_ispeed: 0,
         c_ospeed: 0,
         c_iflag: 0,
@@ -276,11 +342,10 @@ fn termios() -> libc::termios {
 }
 
 #[inline]
-#[cfg(target_os = "linux")]
+#[cfg(target_os = "macos")]
 fn termios() -> libc::termios {
     libc::termios {
-        c_line: 0,
-        c_cc: [0; 32],
+        c_cc: [0u8; 20],
         c_ispeed: 0,
         c_ospeed: 0,
         c_iflag: 0,

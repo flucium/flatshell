@@ -21,6 +21,7 @@ impl Statement {
 pub struct Command {
     pub expr: Expr,
     pub args: Vec<Expr>,
+    pub redirects: Vec<Redirect>,
 }
 
 impl Command {

@@ -15,8 +15,18 @@ pub struct History {
 }
 
 impl History {
-
     /// Create a new history
+    ///
+    /// # Example
+    /// ```
+    /// use flat_terminal::History;
+    ///
+    /// let mut history = History::new();
+    ///
+    /// history.push("ls");
+    ///
+    /// assert_eq!(history.entries, vec!["ls"]);
+    /// ```
     pub const fn new() -> Self {
         Self {
             entries: Vec::new(),
@@ -25,6 +35,16 @@ impl History {
     }
 
     /// Open a history file
+    ///
+    /// # Example
+    /// ```
+    /// use std::path::Path;
+    /// use flat_terminal::History;
+    ///
+    /// // let history = History::open(Path::new(""));
+    ///
+    /// // assert!(history.is_ok());
+    /// ```
     pub fn open(path: &Path) -> Result<Self> {
         let mut file = match fs::File::open(path) {
             Err(err) => match err.kind() {
@@ -55,6 +75,18 @@ impl History {
     }
 
     /// Save the history to a file
+    ///
+    /// # Example
+    /// ```
+    /// use std::path::Path;
+    /// use flat_terminal::History;
+    ///
+    /// // let history = History::new();
+    ///
+    /// // history.save(Path::new("history.txt"));
+    ///
+    /// // assert!(Path::new("history.txt").exists());
+    /// ```
     pub fn save(&self, path: &Path) -> Result<()> {
         let mut file =
             fs::File::create(path).map_err(|err| Error::new(ErrorKind::Other, &err.to_string()))?;
@@ -67,17 +99,38 @@ impl History {
                 .map_err(|err| Error::new(ErrorKind::Other, &err.to_string()))?;
         }
 
-        
         Ok(())
     }
 
     /// Add a new entry to the history
+    ///
+    /// # Example
+    /// ```
+    /// use flat_terminal::History;
+    ///
+    /// let mut history = History::new();
+    ///
+    /// history.push("ls");
+    ///
+    /// assert_eq!(history.entries, vec!["ls"]);
+    /// ```
     pub fn push(&mut self, entry: impl Into<String>) {
         self.entries.push(entry.into());
         self.current = self.entries.len();
     }
 
     /// Get the previous entry in the history: (cursor up)
+    ///
+    /// # Example
+    /// ```
+    /// use flat_terminal::History;
+    ///
+    /// let mut history = History::new();
+    ///
+    /// history.push("ls");
+    ///
+    /// assert_eq!(history.prev(), Some(&"ls".to_string()));
+    /// ```
     pub fn prev(&mut self) -> Option<&String> {
         if self.current > 0 {
             self.current -= 1;
@@ -88,6 +141,17 @@ impl History {
     }
 
     /// Get the next entry in the history: (cursor down)
+    ///
+    /// # Example
+    /// ```
+    /// use flat_terminal::History;
+    ///
+    /// let mut history = History::new();
+    ///
+    /// history.push("ls");
+    ///
+    /// assert_eq!(history.next(), None);
+    /// ```
     pub fn next(&mut self) -> Option<&String> {
         if self.current < self.entries.len() {
             self.current += 1;
@@ -95,5 +159,55 @@ impl History {
         } else {
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn test_history_new() {
+        let history = super::History::new();
+
+        assert_eq!(history.entries.len(), 0);
+    }
+
+    #[test]
+    fn test_history_push() {
+        let mut history = super::History::new();
+
+        history.push("ls");
+
+        history.push("cd");
+
+        assert_eq!(history.entries, vec!["ls", "cd"]);
+    }
+
+    #[test]
+    fn test_history_prev() {
+        let mut history = super::History::new();
+
+        history.push("ls");
+
+        history.push("cd");
+
+        assert_eq!(history.prev(), Some(&"cd".to_string()));
+
+        assert_eq!(history.prev(), Some(&"ls".to_string()));
+
+        assert_eq!(history.prev(), None);
+    }
+
+    #[test]
+    fn test_history_next() {
+        let mut history = super::History::new();
+
+        history.push("ls");
+
+        history.push("cd");
+
+        assert_eq!(history.prev(), Some(&"cd".to_string()));
+
+        assert_eq!(history.next(), None);
     }
 }

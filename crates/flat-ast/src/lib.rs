@@ -21,6 +21,13 @@ impl FlatAst {
         FlatAst::Semicolon(Vec::new())
     }
 
+    pub fn push(&mut self, ast: FlatAst) {
+        match self {
+            FlatAst::Semicolon(ref mut v) => v.push(ast),
+            _ => panic!("Cannot push to non-sequence"),
+        }
+    }
+
     pub fn to_json(&self, is_pretty: bool) -> String {
         if is_pretty {
             serde_json::to_string_pretty(&self).unwrap()

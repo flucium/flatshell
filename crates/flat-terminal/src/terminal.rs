@@ -17,6 +17,20 @@ pub struct Terminal {
 }
 
 impl Terminal {
+
+    /// Create a new terminal
+    /// 
+    /// # Example
+    /// ```
+    /// use flat_terminal::Terminal;
+    /// 
+    /// let mut terminal = Terminal::new();
+    /// 
+    /// terminal.set_prompt("> ");
+    /// 
+    /// // History is disabled if there is no history.
+    /// terminal.set_history(History::new());
+    /// ```
     pub fn new() -> Self {
         Self {
             termios: termios(),
@@ -25,14 +39,30 @@ impl Terminal {
         }
     }
 
+    /// Set the prompt
     pub fn set_prompt(&mut self, prompt: impl Into<String>) {
         self.prompt = prompt.into();
     }
 
+    /// Set the history
+    /// 
+    /// History is disabled if there is no history.
     pub fn set_history(&mut self, history: History) {
         self.history = Some(history);
     }
 
+    /// Read a line
+    /// 
+    /// # Example
+    /// ```
+    /// use flat_terminal::Terminal;
+    /// 
+    /// let mut terminal = Terminal::new();
+    /// 
+    /// terminal.set_prompt("> ");
+    /// 
+    /// let line = terminal.read_line();
+    /// ```
     pub fn read_line(&mut self) -> Result<String> {
         self.set_raw_mode();
 

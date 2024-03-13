@@ -1,3 +1,17 @@
+/*
+    Todo:
+    1 Refactor the parse assign.
+    2 Refactor the parse redirect.
+    3 Refactor the parse command.
+    4 Refactor the parse pipe.
+    5 Refactor the semicolon split.
+    6 Implements background execution commands (in combination with nohup) into commands and command parsing.
+    7 Implements Close FD.
+    8 Refactor the parse.
+    10 Refactor the unit tests.
+    
+*/
+
 use flat_ast;
 use flat_common::error::{Error, ErrorKind};
 use flat_common::result::Result;
@@ -21,7 +35,7 @@ impl Parser {
         This is a draft!!!
         This is a draft!!!
         This is a draft!!!
-    */    
+    */
     pub fn parse(&mut self) -> Result<flat_ast::FlatAst> {
         if self.tokens.last() == Some(&Token::EOF) {
             self.tokens.pop().unwrap();
@@ -131,15 +145,57 @@ fn parse_command(tokens: &mut [Token]) -> Result<flat_ast::Command> {
 
     let mut args = Vec::new();
 
-    for tkn in tokens[1..].iter() {
-        let arg = parse_string(tkn)
-            .or(parse_ident(tkn))
-            .or(parse_usize(tkn))?;
+    let mut redirects = Vec::new();
 
-        args.push(arg);
+    let tokens = tokens[1..].to_vec();
+
+    let mut skip_count = 0;
+
+    for i in 0..tokens.len() {
+        if skip_count > 0 {
+            skip_count -= 1;
+            continue;
+        }
+
+        match tokens[i] {
+            Token::Gt | Token::Lt => {
+                if i + 1 < tokens.len() {
+                    let redirect = parse_redirect(&tokens[i..i + 2])?;
+
+                    redirects.push(redirect);
+
+                    skip_count = 1;
+                } else {
+                    Err(Error::DUMMY)?;
+                }
+            }
+
+            Token::FD(_) => {
+                if i + 2 < tokens.len() {
+                    let redirect = parse_redirect(&tokens[i..i + 3])?;
+
+                    redirects.push(redirect);
+
+                    skip_count = 2;
+                } else {
+                    Err(Error::DUMMY)?;
+                }
+            }
+            _ => {
+                let arg = parse_string(&tokens[i])
+                    .or(parse_ident(&tokens[i]))
+                    .or(parse_usize(&tokens[i]))?;
+
+                args.push(arg);
+            }
+        }
     }
 
-    Ok(flat_ast::Command { expr, args })
+    Ok(flat_ast::Command {
+        expr,
+        args,
+        redirects,
+    })
 }
 
 fn parse_redirect(tokens: &[Token]) -> Result<flat_ast::Redirect> {
@@ -228,7 +284,10 @@ fn parse_fd(token: &Token) -> Result<flat_ast::Expr> {
 fn parse_usize(token: &Token) -> Result<flat_ast::Expr> {
     match token {
         Token::USize(num) => Ok(flat_ast::Expr::USize(*num)),
-        _ => Err(Error::new(ErrorKind::SyntaxError, "Expected a usize literal"))?,
+        _ => Err(Error::new(
+            ErrorKind::SyntaxError,
+            "Expected a usize literal",
+        ))?,
     }
 }
 
@@ -236,10 +295,7 @@ fn parse_usize(token: &Token) -> Result<flat_ast::Expr> {
 fn parse_ident(token: &Token) -> Result<flat_ast::Expr> {
     match token {
         Token::Ident(string) => Ok(flat_ast::Expr::Ident(string.to_string())),
-        _ => Err(Error::new(
-            ErrorKind::SyntaxError,
-            "Expected a identifier",
-        ))?,
+        _ => Err(Error::new(ErrorKind::SyntaxError, "Expected a identifier"))?,
     }
 }
 
@@ -247,13 +303,32 @@ fn parse_ident(token: &Token) -> Result<flat_ast::Expr> {
 fn parse_string(token: &Token) -> Result<flat_ast::Expr> {
     match token {
         Token::String(string) => Ok(flat_ast::Expr::String(string.to_string())),
-        _ => Err(Error::new(ErrorKind::SyntaxError, "Expected a string literal"))?,
+        _ => Err(Error::new(
+            ErrorKind::SyntaxError,
+            "Expected a string literal",
+        ))?,
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_parse_command_with_redirect() {
+        let mut tokens = vec![
+            Token::Ident("ls".to_string()),
+            Token::String("-a".to_string()),
+            Token::Gt,
+            Token::String("file".to_string()),
+            Token::String("~".to_string()),
+            Token::FD(2),
+            Token::Gt,
+            Token::String("errfile".to_string()),
+        ];
+
+        assert_eq!(parse_command(&mut tokens).is_ok(), true);
+    }
 
     /*
         Test parse_string

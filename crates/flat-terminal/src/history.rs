@@ -8,12 +8,15 @@ use std::{
     path::Path,
 };
 
+#[derive(Debug)]
 pub struct History {
     pub entries: Vec<String>,
     pub current: usize,
 }
 
 impl History {
+
+    /// Create a new history
     pub const fn new() -> Self {
         Self {
             entries: Vec::new(),
@@ -21,6 +24,7 @@ impl History {
         }
     }
 
+    /// Open a history file
     pub fn open(path: &Path) -> Result<Self> {
         let mut file = match fs::File::open(path) {
             Err(err) => match err.kind() {
@@ -50,6 +54,7 @@ impl History {
         })
     }
 
+    /// Save the history to a file
     pub fn save(&self, path: &Path) -> Result<()> {
         let mut file =
             fs::File::create(path).map_err(|err| Error::new(ErrorKind::Other, &err.to_string()))?;
@@ -66,11 +71,13 @@ impl History {
         Ok(())
     }
 
-    pub fn push(&mut self, entry: String) {
-        self.entries.push(entry);
+    /// Add a new entry to the history
+    pub fn push(&mut self, entry: impl Into<String>) {
+        self.entries.push(entry.into());
         self.current = self.entries.len();
     }
 
+    /// Get the previous entry in the history: (cursor up)
     pub fn prev(&mut self) -> Option<&String> {
         if self.current > 0 {
             self.current -= 1;
@@ -80,6 +87,7 @@ impl History {
         }
     }
 
+    /// Get the next entry in the history: (cursor down)
     pub fn next(&mut self) -> Option<&String> {
         if self.current < self.entries.len() {
             self.current += 1;

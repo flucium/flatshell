@@ -52,4 +52,105 @@ impl ToString for Line {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
 
+    #[test]
+    fn test_line_new() {
+        let line = Line::new();
+
+        assert_eq!(line.0, 0);
+        assert_eq!(line.1, vec![]);
+    }
+
+    #[test]
+    fn test_line_insert() {
+        let mut line = Line::new();
+
+        line.insert(b'h');
+        line.insert(b'e');
+        line.insert(b'l');
+        line.insert(b'l');
+        line.insert(b'o');
+
+        assert_eq!(line.0, 5);
+        assert_eq!(line.1, vec![b'h', b'e', b'l', b'l', b'o']);
+    }
+
+    #[test]
+    fn test_line_backspace() {
+        let mut line = Line::new();
+
+        line.insert(b'h');
+        line.insert(b'e');
+        line.insert(b'l');
+        line.insert(b'l');
+        line.insert(b'o');
+
+        line.backspace();
+
+        assert_eq!(line.0, 4);
+        assert_eq!(line.1, vec![b'h', b'e', b'l', b'l']);
+    }
+
+    #[test]
+    fn test_line_left() {
+        let mut line = Line::new();
+
+        line.insert(b'h');
+        line.insert(b'e');
+        line.insert(b'l');
+        line.insert(b'l');
+        line.insert(b'o');
+
+        line.left();
+
+        assert_eq!(line.0, 4);
+    }
+
+    #[test]
+    fn test_line_right() {
+        let mut line = Line::new();
+
+        line.insert(b'h');
+        line.insert(b'e');
+        line.insert(b'l');
+        line.insert(b'l');
+        line.insert(b'o');
+
+        line.left();
+        line.right();
+
+        assert_eq!(line.0, 5);
+    }
+
+    #[test]
+    fn test_line_clear() {
+        let mut line = Line::new();
+
+        line.insert(b'h');
+        line.insert(b'e');
+        line.insert(b'l');
+        line.insert(b'l');
+        line.insert(b'o');
+
+        line.clear();
+
+        assert_eq!(line.0, 0);
+        assert_eq!(line.1, vec![]);
+    }
+
+    #[test]
+    fn test_line_len() {
+        let mut line = Line::new();
+
+        line.insert(b'h');
+        line.insert(b'e');
+        line.insert(b'l');
+        line.insert(b'l');
+        line.insert(b'o');
+
+        assert_eq!(line.len(), 5);
+    }
+}

@@ -14,7 +14,6 @@ pub struct Parser {
 }
 
 impl Parser {
-
     /// Create a new parser
     pub fn new(lexer: Lexer) -> Self {
         let root = flat_ast::FlatAst::new();
@@ -22,7 +21,7 @@ impl Parser {
     }
 
     /// Parse the input
-    /// 
+    ///
     /// This function will parse the input and return a flat_ast::FlatAst
     pub fn parse(&mut self) -> Result<flat_ast::FlatAst> {
         let mut tokens = self.lexer.tokenize();
@@ -92,12 +91,20 @@ fn parse_command(tokens: &[Token]) -> Result<flat_ast::Command> {
 
     let expr = parse_command_expr(&tokens[0])?;
 
-    let (args, redirects) = parse_command_args_with_redirect(&tokens[1..])?;
+    let (tokens, background) = if tokens[1..].contains(&Token::Ampersand) {
+        let (left, _) = utils::split(&Token::Ampersand, &tokens[1..]);
+        (left, true)
+    } else {
+        (tokens[1..].to_vec(), false)
+    };
+
+    let (args, redirects) = parse_command_args_with_redirect(&tokens)?;
 
     Ok(flat_ast::Command {
         expr,
         args,
         redirects,
+        background,
     })
 }
 

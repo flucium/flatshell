@@ -1,6 +1,5 @@
 use crate::token::Token;
 
-
 /// Split the tokens into multiple parts, the split position is the place token.
 pub(super) fn recursion_split(place: &Token, tokens: &[Token]) -> Vec<Vec<Token>> {
     let mut result = Vec::new();
@@ -82,10 +81,43 @@ mod tests {
         assert_eq!(
             result,
             vec![
-                vec![Token::String("a".to_string()), Token::String("b".to_string())],
-                vec![Token::String("c".to_string()), Token::String("d".to_string())],
-                vec![Token::String("e".to_string()), Token::String("f".to_string())]
+                vec![
+                    Token::String("a".to_string()),
+                    Token::String("b".to_string())
+                ],
+                vec![
+                    Token::String("c".to_string()),
+                    Token::String("d".to_string())
+                ],
+                vec![
+                    Token::String("e".to_string()),
+                    Token::String("f".to_string())
+                ]
             ]
+        );
+    }
+
+    #[test]
+    fn test_recursion_split_no_place() {
+        let tokens = vec![
+            Token::String("a".to_string()),
+            Token::String("b".to_string()),
+            Token::String("c".to_string()),
+            Token::String("d".to_string()),
+        ];
+
+        let place = Token::Semicolon;
+
+        let result = recursion_split(&place, &tokens);
+
+        assert_eq!(
+            result,
+            vec![vec![
+                Token::String("a".to_string()),
+                Token::String("b".to_string()),
+                Token::String("c".to_string()),
+                Token::String("d".to_string())
+            ]]
         );
     }
 
@@ -122,6 +154,32 @@ mod tests {
 
     #[test]
     fn test_split_no_place() {
+        let tokens = vec![
+            Token::String("a".to_string()),
+            Token::String("b".to_string()),
+            Token::String("c".to_string()),
+            Token::String("d".to_string()),
+        ];
+
+        let place = Token::Semicolon;
+
+        let (left, right) = split(&place, &tokens);
+
+        assert_eq!(
+            left,
+            vec![
+                Token::String("a".to_string()),
+                Token::String("b".to_string()),
+                Token::String("c".to_string()),
+                Token::String("d".to_string())
+            ]
+        );
+
+        assert_eq!(right, Vec::default());
+    }
+
+    #[test]
+    fn test_split_no_place_left_and_none_right() {
         let tokens = vec![
             Token::String("a".to_string()),
             Token::String("b".to_string()),

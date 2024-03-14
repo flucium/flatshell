@@ -31,6 +31,7 @@ impl Parser {
         let entries = utils::recursion_split(&Token::Semicolon, &tokens);
 
         for tokens in entries {
+
             if tokens.contains(&Token::Pipe) {
                 let pipe = parse_pipe(&tokens)?;
 
@@ -266,29 +267,29 @@ fn parse_assign(tokens: &[Token; 3]) -> Result<flat_ast::Assign> {
     Ok(flat_ast::Assign { ident, expr })
 }
 
-/// Parse a file descriptor literal
-///
-/// Zero(0) and Positive FD values, will result in an error.
-///
-fn parse_close_fd(token: &Token) -> Result<flat_ast::Expr> {
-    match token {
-        Token::FD(fd) => {
-            if fd > &0 {
-                Err(Error::new(
-                    ErrorKind::SyntaxError,
-                    "Expected a file descriptor literal. File descriptor value cannot be positive",
-                ))?
-            }
+// Parse a file descriptor literal
+//
+// Zero(0) and Positive FD values, will result in an error.
+//
+// fn parse_close_fd(token: &Token) -> Result<flat_ast::Expr> {
+//     match token {
+//         Token::FD(fd) => {
+//             if fd > &0 {
+//                 Err(Error::new(
+//                     ErrorKind::SyntaxError,
+//                     "Expected a file descriptor literal. File descriptor value cannot be positive",
+//                 ))?
+//             }
 
-            Ok(flat_ast::Expr::FD(*fd))
-        }
+//             Ok(flat_ast::Expr::FD(*fd))
+//         }
 
-        _ => Err(Error::new(
-            ErrorKind::SyntaxError,
-            "Expected a file descriptor literal",
-        ))?,
-    }
-}
+//         _ => Err(Error::new(
+//             ErrorKind::SyntaxError,
+//             "Expected a file descriptor literal",
+//         ))?,
+//     }
+// }
 
 /// Parse a file descriptor literal
 ///
@@ -381,6 +382,24 @@ mod tests {
         assert_eq!(pipe.commands[2].args.len(), 0);
 
         assert_eq!(pipe.commands[2].redirects.len(), 0);
+    }
+
+    #[test]
+    fn test_parse_command_with_background(){
+        let tokens = [
+            Token::String("ls".to_string()),
+            Token::Ampersand,
+        ];
+
+        let command = parse_command(&tokens).unwrap();
+
+        assert_eq!(command.expr, flat_ast::Expr::String("ls".to_string()));
+
+        assert_eq!(command.args.len(), 0);
+
+        assert_eq!(command.redirects.len(), 0);
+
+        assert_eq!(command.background, true);
     }
 
     #[test]
@@ -565,14 +584,14 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_parse_close_fd() {
-        let token = Token::FD(-1);
+    // #[test]
+    // fn test_parse_close_fd() {
+    //     let token = Token::FD(-1);
 
-        let expr = parse_close_fd(&token).unwrap();
+    //     let expr = parse_close_fd(&token).unwrap();
 
-        assert_eq!(expr, flat_ast::Expr::FD(-1));
-    }
+    //     assert_eq!(expr, flat_ast::Expr::FD(-1));
+    // }
 
     #[test]
     fn test_parse_fd() {

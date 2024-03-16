@@ -6,3 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+
+# Internal
+flat-terminal = {path = "../crates/flat-terminal", version="0.0.1"}
+flat-parser = {path = "../crates/flat-parser", version="0.0.1"}
+flat-ast = {path = "../crates/flat-ast", version="0.0.1"}

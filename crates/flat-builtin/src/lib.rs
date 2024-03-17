@@ -1,5 +1,7 @@
 mod common;
 
+mod calc;
+
 #[cfg(target_os = "linux")]
 mod linux;
 
@@ -14,3 +16,5 @@ pub use linux::*;
 pub use darwin::*;
 
 pub use common::*;
+
+pub use calc::*;

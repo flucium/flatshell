@@ -12,3 +12,10 @@
 - [ ] Add Conditional statements: if, else and loop statement.
 - [ ] Support Close FD
 - [ ] Support Shell Redirect (no command redirect)
+
+
+**flat-builtin**
+- [x] Implement ./src/calc.rs
+- [ ] Handle negative values, ./src/calc.rs
+- [ ] Correct Error::DUMMY to the appropriate Error and ErrorKind. ./src/calc.rs
+- [ ] Reimplement using flat-parser. Currently, it is self-contained in the code for this context. ./src/calc.rs

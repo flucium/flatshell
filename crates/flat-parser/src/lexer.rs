@@ -8,6 +8,7 @@ pub struct Lexer {
 }
 
 impl Lexer {
+    /// Create a new lexer from the given input.
     pub fn new(input: &str) -> Lexer {
         let input = replace_line_with_semicolon(input);
 
@@ -18,6 +19,37 @@ impl Lexer {
         }
     }
 
+    /// Tokenize the input and return a vector of tokens.
+    ///
+    /// # Example
+    /// ```
+    /// use flat_parser::Lexer;
+    /// use flat_parser::token::Token;
+    ///
+    /// let input = "echo hello world;ping -c 3 github.com | cat -b";
+    ///
+    /// let mut lexer = Lexer::new(input);
+    ///
+    /// let tokens = lexer.tokenize();
+    ///
+    /// assert_eq!(
+    ///     tokens,
+    ///     vec![
+    ///         Token::String("echo".to_string()),
+    ///         Token::String("hello".to_string()),
+    ///         Token::String("world".to_string()),
+    ///         Token::Semicolon,
+    ///         Token::String("ping".to_string()),
+    ///         Token::String("-c".to_string()),
+    ///         Token::USize(3),
+    ///         Token::String("github.com".to_string()),
+    ///         Token::Pipe,
+    ///         Token::String("cat".to_string()),
+    ///         Token::String("-b".to_string()),
+    ///         Token::EOF
+    ///     ]
+    /// );
+    /// ```
     pub fn tokenize(&mut self) -> Vec<Token> {
         let mut tokens = Vec::new();
 

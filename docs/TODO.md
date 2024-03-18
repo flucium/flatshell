@@ -3,7 +3,7 @@
 - [x] Add ./src/utils.rs
 - [ ] Refactor ./src/parser.rs
 - [ ] Implement ./src/investigate.rs
-- [ ] Support for line breaks (\n or \r\n)
+- [x] Support for line breaks (\n or \r\n)
 - [ ] Supports line breaks in interactive mode (\)
 - [x] Add unit test, ./src/lexer.rs
 - [ ] Add unit test, ./src/parser.rs

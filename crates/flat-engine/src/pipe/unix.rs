@@ -10,14 +10,17 @@ pub struct Pipe(
 );
 
 impl Pipe {
-    pub fn new() -> Self {
+    /// Create a new pipe
+    pub const fn new() -> Self {
         Self(None, None)
     }
 
+    /// Send data to the pipe
     pub fn send(&mut self, fd: std::os::unix::io::RawFd) {
         self.0 = Some(fd);
     }
 
+    /// Receive data from the pipe
     pub fn recv(&mut self) -> Result<std::os::unix::io::RawFd> {
         self.0.take().ok_or(Error::DUMMY)
     }

@@ -1,17 +1,37 @@
 /// Error kind
-#[derive(Debug,PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum ErrorKind {
     Dummy,
     Internal,
     Other,
     NotFound,
     PermissionDenied,
-
+    Failure,
     SyntaxError,
 }
 
+impl ErrorKind {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ErrorKind::Dummy => "Dummy",
+            ErrorKind::Internal => "Internal",
+            ErrorKind::Other => "Other",
+            ErrorKind::NotFound => "NotFound",
+            ErrorKind::PermissionDenied => "PermissionDenied",
+            ErrorKind::Failure => "Failure",
+            ErrorKind::SyntaxError => "SyntaxError",
+        }
+    }
+}
+
+impl ToString for ErrorKind {
+    fn to_string(&self) -> String {
+        self.as_str().to_string()
+    }
+}
+
 /// Error
-#[derive(Debug,PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct Error {
     kind: ErrorKind,
     // message: &'static str,

@@ -1,3 +1,7 @@
+use flat_common::{
+    error::{Error, ErrorKind},
+    result::Result,
+};
 use std::mem::ManuallyDrop;
 
 #[derive(Debug)]
@@ -41,6 +45,11 @@ impl Handler {
             .map(|ps| &mut **ps)
     }
 
+    /// Get all processes from the handler
+    pub fn entries(&self) -> Vec<&std::process::Child> {
+        self.0.iter().map(|ps| &**ps).collect()
+    }
+
     /// Check if the handler is empty
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
@@ -57,27 +66,43 @@ impl Handler {
     }
 
     /// Kill a process
-    pub fn kill(&mut self, pid: u32) {
-        self.0.iter_mut().for_each(|ps| {
+    pub fn kill(&mut self, pid: u32) -> Result<()> {
+        self.0.iter_mut().try_for_each(|ps| -> Result<()> {
             if ps.id() == pid {
-                ps.kill().unwrap();
+                // try to kill the process
+                let kill = ps.kill();
 
+                // drop the process
                 unsafe {
                     ManuallyDrop::drop(ps);
                 }
+
+                // check if the process was killed
+                kill.map_err(|_| Error::new(ErrorKind::Failure, "Failed to kill the process."))?;
+
+                return Ok(());
             }
-        });
+
+            Ok(())
+        })
     }
 
     /// Kill all processes
-    pub fn kill_all(&mut self) {
-        self.0.iter_mut().for_each(|ps| {
-            ps.kill().unwrap();
+    pub fn kill_all(&mut self) -> Result<()> {
+        self.0.iter_mut().try_for_each(|ps| -> Result<()> {
+            // try to kill the process
+            let kill = ps.kill();
 
+            // drop the process
             unsafe {
                 ManuallyDrop::drop(ps);
             }
-        });
+
+            // check if the process was killed
+            kill.map_err(|_| Error::new(ErrorKind::Failure, "Failed to kill the process."))?;
+
+            Ok(())
+        })
     }
 
     /// Wait for all processes to finish
@@ -85,9 +110,9 @@ impl Handler {
         let mut v = Vec::with_capacity(self.0.len());
 
         self.0.iter_mut().for_each(|ps| {
-            let status = ps.wait().unwrap();
-
-            v.push((ps.id(), status));
+            if let Ok(status) = ps.wait() {
+                v.push((ps.id(), status));
+            }
 
             unsafe {
                 ManuallyDrop::drop(ps);
@@ -102,9 +127,9 @@ impl Handler {
         let mut v = Vec::with_capacity(self.0.len());
 
         self.0.iter_mut().for_each(|ps| {
-            let status = ps.wait().unwrap();
-
-            v.push((ps.id(), status));
+            if let Ok(status) = ps.wait() {
+                v.push((ps.id(), status));
+            }
         });
 
         v

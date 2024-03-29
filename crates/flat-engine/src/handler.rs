@@ -5,9 +5,9 @@ use flat_common::{
 use std::mem::ManuallyDrop;
 
 #[derive(Debug)]
-pub struct Handler(Vec<ManuallyDrop<std::process::Child>>);
+pub struct ProcessHandler(Vec<ManuallyDrop<std::process::Child>>);
 
-impl Handler {
+impl ProcessHandler {
     /// Create a new handler
     pub fn new() -> Self {
         Self(Vec::new())

@@ -1,4 +1,7 @@
-use flat_common::{error::Error, result::Result};
+use flat_common::{
+    error::{Error, ErrorKind},
+    result::Result,
+};
 use std::{collections::HashMap, fs, io::Write, path::Path};
 
 #[derive(Debug, Clone)]
@@ -23,26 +26,31 @@ impl ShVars {
     /// vars.print();
     /// ```
     pub fn inherit(&mut self, env_vars: std::env::Vars) -> &mut Self {
-        let mut vars = HashMap::new();
-
         for (key, value) in env_vars {
-            vars.insert(key, value);
+            self.0.insert(key, value);
         }
 
         self
     }
 
     /// Open a shell variables file.
-    pub fn open(path: &Path) -> Self {
+    pub fn open(path: &Path) -> Result<Self> {
+        // Create a new instance of `ShVars`.
         let mut vars = HashMap::new();
 
+        // Read the file.
         let file = match fs::read_to_string(path) {
             Ok(file) => file,
             Err(err) => {
-                panic!("Failed to read file: {}", err);
+                if err.kind() == std::io::ErrorKind::NotFound {
+                    Err(Error::new(ErrorKind::NotFound, "No such file"))?
+                } else {
+                    Err(Error::new(ErrorKind::Other, &err.to_string()))?
+                }
             }
         };
 
+        // Parse the file.
         for line in file.lines() {
             if line.is_empty() {
                 continue;
@@ -65,26 +73,49 @@ impl ShVars {
                 value.trim_start().trim_end().to_string(),
             );
         }
-        Self(vars)
+        Ok(Self(vars))
     }
 
     /// Save shell variables to a file.
-    pub fn save(&self, path: &Path) {
+    pub fn save(&self, path: &Path) -> Result<()> {
         let mut file = match fs::File::options().create(true).write(true).open(path) {
             Ok(file) => file,
             Err(err) => {
-                panic!("Failed to open file: {}", err);
+                if err.kind() == std::io::ErrorKind::PermissionDenied {
+                    Err(Error::new(ErrorKind::PermissionDenied, "Permission denied"))?
+                } else {
+                    Err(Error::new(ErrorKind::Other, &err.to_string()))?
+                }
             }
         };
 
         for (key, value) in &self.0 {
             let line = format!("{}={}\n", key, value);
 
-            file.write_all(line.as_bytes())
-                .expect("Failed to write to file");
+            file.write_all(line.as_bytes()).map_err(|err| {
+                if err.kind() == std::io::ErrorKind::Interrupted {
+                    Error::new(
+                        ErrorKind::Interrupted,
+                        "The operation was interrupted before it could be completed",
+                    )
+                } else {
+                    Error::new(ErrorKind::Other, &err.to_string())
+                }
+            })?;
 
-            file.write(b"\n").expect("Failed to write to file");
+            file.write(b"\n").map_err(|err| {
+                if err.kind() == std::io::ErrorKind::Interrupted {
+                    Error::new(
+                        ErrorKind::Interrupted,
+                        "The operation was interrupted before it could be completed",
+                    )
+                } else {
+                    Error::new(ErrorKind::Other, &err.to_string())
+                }
+            })?;
         }
+
+        Ok(())
     }
 
     /// Get a shell variable by key.
@@ -100,10 +131,12 @@ impl ShVars {
     /// assert_eq!(vars.get("key").unwrap(), "value");
     /// ```
     pub fn get(&self, key: &str) -> Result<&str> {
-        self.0
-            .get(key)
-            .map(|value| value.as_str())
-            .ok_or_else(|| Error::DUMMY)
+        self.0.get(key).map(|value| value.as_str()).ok_or_else(|| {
+            Error::new(
+                ErrorKind::NotFound,
+                &format!("The key '{}' does not exist", key),
+            )
+        })
     }
 
     /// Set a shell variable.
@@ -118,8 +151,8 @@ impl ShVars {
     ///
     /// assert_eq!(vars.get("key").unwrap(), "value");
     /// ```
-    pub fn set(&mut self, key: &str, value: &str) {
-        self.0.insert(key.to_string(), value.to_string());
+    pub fn insert(&mut self, key: impl Into<String>, value: impl Into<String>) {
+        self.0.insert(key.into(), value.into());
     }
 
     /// Unset a shell variable.
@@ -136,7 +169,7 @@ impl ShVars {
     ///
     /// assert_eq!(vars.exists("key"), false);
     /// ```
-    pub fn unset(&mut self, key: &str) {
+    pub fn remove(&mut self, key: &str) {
         self.0.remove(key);
     }
 
@@ -187,16 +220,25 @@ impl ShVars {
     }
 
     /// Print shell variables to stdout.
-    pub fn print(&self) {
+    pub fn print(&self) -> Result<()> {
         let mut stdout = std::io::stdout().lock();
 
         for (key, value) in &self.0 {
             let line = format!("{}={}\n", key, value);
 
-            stdout
-                .write_all(line.as_bytes())
-                .expect("Failed to write to stdout");
+            stdout.write_all(line.as_bytes()).map_err(|err| {
+                if err.kind() == std::io::ErrorKind::Interrupted {
+                    Error::new(
+                        ErrorKind::Interrupted,
+                        "The operation was interrupted before it could be completed",
+                    )
+                } else {
+                    Error::new(ErrorKind::Other, &err.to_string())
+                }
+            })?;
         }
+
+        Ok(())
     }
 }
 
@@ -230,11 +272,11 @@ mod tests {
     }
 
     #[test]
-    fn test_sh_vars_set() {
+    fn test_sh_vars_insert() {
         let mut vars = ShVars::new();
 
         for i in 0..10 {
-            vars.set(&format!("key{}", i), &format!("value{}", i));
+            vars.insert(format!("key{}", i), format!("value{}", i));
         }
 
         for i in 0..10 {
@@ -270,14 +312,14 @@ mod tests {
     }
 
     #[test]
-    fn test_sh_vars_unset() {
+    fn test_sh_vars_remove() {
         let mut vars = ShVars::from(HashMap::from([
             ("key1".to_string(), "value1".to_string()),
             ("key2".to_string(), "value2".to_string()),
             ("key3".to_string(), "value3".to_string()),
         ]));
 
-        vars.unset("key1");
+        vars.remove("key1");
 
         assert_eq!(vars.exists("key1"), false);
 

@@ -5,28 +5,27 @@ use std::{collections::HashMap, fs, io::Write, path::Path};
 pub struct ShVars(HashMap<String, String>);
 
 impl ShVars {
-    
     /// Create a new instance of `ShVars`.
     pub fn new() -> Self {
         Self(HashMap::new())
     }
 
     /// Inherit environment variables.
-    /// 
+    ///
     /// # Example
     /// ```
     /// use flat_engine::ShVars;
-    /// 
+    ///
     /// let mut vars = ShVars::new();
-    /// 
-    /// vars.inherit();
-    /// 
+    ///
+    /// vars.inherit(std::env::vars());
+    ///
     /// vars.print();
     /// ```
-    pub fn inherit(&mut self) -> &mut Self {
+    pub fn inherit(&mut self, env_vars: std::env::Vars) -> &mut Self {
         let mut vars = HashMap::new();
 
-        for (key, value) in std::env::vars() {
+        for (key, value) in env_vars {
             vars.insert(key, value);
         }
 
@@ -89,15 +88,15 @@ impl ShVars {
     }
 
     /// Get a shell variable by key.
-    /// 
+    ///
     /// # Example
     /// ```
     /// use flat_engine::ShVars;
-    /// 
+    ///
     /// let mut vars = ShVars::new();
-    /// 
+    ///
     /// vars.set("key", "value");
-    /// 
+    ///
     /// assert_eq!(vars.get("key").unwrap(), "value");
     /// ```
     pub fn get(&self, key: &str) -> Result<&str> {
@@ -108,15 +107,15 @@ impl ShVars {
     }
 
     /// Set a shell variable.
-    /// 
+    ///
     /// # Example
     /// ```
     /// use flat_engine::ShVars;
-    /// 
+    ///
     /// let mut vars = ShVars::new();
-    /// 
+    ///
     /// vars.set("key", "value");
-    /// 
+    ///
     /// assert_eq!(vars.get("key").unwrap(), "value");
     /// ```
     pub fn set(&mut self, key: &str, value: &str) {
@@ -124,17 +123,17 @@ impl ShVars {
     }
 
     /// Unset a shell variable.
-    /// 
+    ///
     /// # Example
     /// ```
     /// use flat_engine::ShVars;
-    /// 
+    ///
     /// let mut vars = ShVars::new();
-    /// 
+    ///
     /// vars.set("key", "value");
-    /// 
+    ///
     /// vars.unset("key");
-    /// 
+    ///
     /// assert_eq!(vars.exists("key"), false);
     /// ```
     pub fn unset(&mut self, key: &str) {
@@ -142,15 +141,15 @@ impl ShVars {
     }
 
     /// Check if a shell variable exists.
-    /// 
+    ///
     /// # Example
     /// ```
     /// use flat_engine::ShVars;
-    /// 
+    ///
     /// let mut vars = ShVars::new();
-    /// 
+    ///
     /// vars.set("key", "value");
-    /// 
+    ///
     /// assert_eq!(vars.exists("key"), true);
     /// ```
     pub fn exists(&self, key: &str) -> bool {

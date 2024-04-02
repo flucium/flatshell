@@ -72,6 +72,10 @@ impl From<(ShVars, ProcessHandler)> for State {
 pub fn eval(ast: flat_ast::FlatAst, state: &mut State) -> Result<()> {
     match ast.to_owned() {
         flat_ast::FlatAst::Semicolon(mut semicolon) => {
+
+            // Bad code
+            semicolon.reverse();
+
             while let Some(ast) = semicolon.pop() {
                 eval(ast, state)?;
             }
@@ -111,6 +115,7 @@ pub fn eval(ast: flat_ast::FlatAst, state: &mut State) -> Result<()> {
 
         flat_ast::FlatAst::Statement(statement) => match statement {
             flat_ast::Statement::Command(command) => {
+                
                 let mut ps_command = create_process_command(command, state)?;
 
                 state
@@ -133,8 +138,9 @@ pub fn eval(ast: flat_ast::FlatAst, state: &mut State) -> Result<()> {
 
                     _ => Err(Error::DUMMY)?,
                 };
-
+                
                 state.vars.set(&ident, &value);
+                
             }
         },
     }
@@ -185,6 +191,7 @@ fn get_command_args(args: Vec<flat_ast::Expr>, state: &mut State) -> Result<Vec<
 }
 
 fn get_command_name(expr: flat_ast::Expr, state: &mut State) -> Result<String> {
+
     match expr {
         flat_ast::Expr::String(string) => Ok(string),
 

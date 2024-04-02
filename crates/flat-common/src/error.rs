@@ -6,6 +6,7 @@ pub enum ErrorKind {
     Other,
     NotFound,
     PermissionDenied,
+    Interrupted,
     Failure,
     SyntaxError,
 }
@@ -18,6 +19,7 @@ impl ErrorKind {
             ErrorKind::Other => "Other",
             ErrorKind::NotFound => "NotFound",
             ErrorKind::PermissionDenied => "PermissionDenied",
+            ErrorKind::Interrupted => "Interrupted",
             ErrorKind::Failure => "Failure",
             ErrorKind::SyntaxError => "SyntaxError",
         }

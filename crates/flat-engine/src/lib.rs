@@ -2,23 +2,24 @@ mod pipe;
 mod process_handler;
 mod sh_vars;
 use flat_common::{error::Error, result::Result};
-// pub use pipe::*;
+pub use pipe::*;
 pub use process_handler::*;
 pub use sh_vars::*;
-use std::process;
+
+use std::{
+    os::unix::io::{AsRawFd, FromRawFd},
+    process,
+};
+
 /*
-    ToDo: Pipe, Error, etc...
+    ToDo: Error, Redirect
 */
+
+#[derive(Debug)]
 pub struct State {
     vars: ShVars,
     handler: ProcessHandler,
-
-    /*
-        Bad codes
-    */
-    stdin: Option<process::Stdio>,
-    stdout: Option<process::Stdio>,
-    stderr: Option<process::Stdio>,
+    pipe: Pipe,
 }
 
 impl State {
@@ -26,9 +27,7 @@ impl State {
         Self {
             vars: ShVars::new(),
             handler: ProcessHandler::new(),
-            stdin: None,
-            stdout: None,
-            stderr: None,
+            pipe: Pipe::new(),
         }
     }
 }
@@ -38,9 +37,7 @@ impl From<ShVars> for State {
         Self {
             vars,
             handler: ProcessHandler::new(),
-            stdin: None,
-            stdout: None,
-            stderr: None,
+            pipe: Pipe::new(),
         }
     }
 }
@@ -50,9 +47,17 @@ impl From<ProcessHandler> for State {
         Self {
             vars: ShVars::new(),
             handler,
-            stdin: None,
-            stdout: None,
-            stderr: None,
+            pipe: Pipe::new(),
+        }
+    }
+}
+
+impl From<Pipe> for State {
+    fn from(pipe: Pipe) -> Self {
+        Self {
+            vars: ShVars::new(),
+            handler: ProcessHandler::new(),
+            pipe,
         }
     }
 }
@@ -62,65 +67,83 @@ impl From<(ShVars, ProcessHandler)> for State {
         Self {
             vars,
             handler,
-            stdin: None,
-            stdout: None,
-            stderr: None,
+            pipe: Pipe::new(),
         }
+    }
+}
+
+impl From<(ShVars, Pipe)> for State {
+    fn from((vars, pipe): (ShVars, Pipe)) -> Self {
+        Self {
+            vars,
+            handler: ProcessHandler::new(),
+            pipe,
+        }
+    }
+}
+
+impl From<(ProcessHandler, Pipe)> for State {
+    fn from((handler, pipe): (ProcessHandler, Pipe)) -> Self {
+        Self {
+            vars: ShVars::new(),
+            handler,
+            pipe,
+        }
+    }
+}
+
+impl From<(ShVars, ProcessHandler, Pipe)> for State {
+    fn from((vars, handler, pipe): (ShVars, ProcessHandler, Pipe)) -> Self {
+        Self { vars, handler, pipe }
     }
 }
 
 pub fn eval(ast: flat_ast::FlatAst, state: &mut State) -> Result<()> {
     match ast.to_owned() {
         flat_ast::FlatAst::Semicolon(mut semicolon) => {
-
-            // Bad code
+            // Bad!
             semicolon.reverse();
 
             while let Some(ast) = semicolon.pop() {
                 eval(ast, state)?;
             }
         }
-
         flat_ast::FlatAst::Pipe(mut pipe) => {
-            // Bad code
+            // Bad!
             pipe.commands.reverse();
 
-            // Bad code
-            state.stdout = Some(process::Stdio::piped());
+            state.pipe = Pipe::open();
 
             while let Some(command) = pipe.commands.pop() {
-                let mut ps_command = create_process_command(command, state)?;
+                let mut ps_command = create_process_command(command, state);
 
-                // Bad code
                 if pipe.commands.is_empty() {
                     ps_command.stdout(process::Stdio::inherit());
-                } else {
-                    ps_command.stdout(process::Stdio::piped());
                 }
 
-                // Bad codes
-                if let Some(child) = ps_command.spawn().ok() {
-                    let pid = state.handler.push(child);
+                let pid = state
+                    .handler
+                    .push(ps_command.spawn().expect("Failed to spawn process"));
 
-                    if let Some(child) = state.handler.get_mut(pid) {
-                        if let Some(stdout) = child.stdout.take() {
-                            state.stdin = Some(process::Stdio::from(stdout));
-                        }
+                if let Some(child) = state.handler.get(pid) {
+                    if let Some(stdout) = child.stdout.as_ref() {
+                        state.pipe.send(stdout.as_raw_fd());
                     }
                 }
             }
 
+            state.pipe.close();
+
             state.handler.wait();
         }
 
-        flat_ast::FlatAst::Statement(statement) => match statement {
+        flat_ast::FlatAst::Statement(statement) => match statement.to_owned() {
             flat_ast::Statement::Command(command) => {
-                
-                let mut ps_command = create_process_command(command, state)?;
+                let mut ps_command = create_process_command(command, state);
 
                 state
                     .handler
-                    .push(ps_command.spawn().map_err(|_| Error::DUMMY)?);
+                    .push(ps_command.spawn().expect("Failed to spawn process"));
 
                 state.handler.wait();
             }
@@ -138,9 +161,8 @@ pub fn eval(ast: flat_ast::FlatAst, state: &mut State) -> Result<()> {
 
                     _ => Err(Error::DUMMY)?,
                 };
-                
-                state.vars.set(&ident, &value);
-                
+
+                state.vars.insert(&ident, &value);
             }
         },
     }
@@ -148,28 +170,44 @@ pub fn eval(ast: flat_ast::FlatAst, state: &mut State) -> Result<()> {
     Ok(())
 }
 
-fn create_process_command(
-    command: flat_ast::Command,
-    state: &mut State,
-) -> Result<process::Command> {
-    let program = get_command_name(command.expr, state)?;
+fn create_process_command(command: flat_ast::Command, state: &mut State) -> process::Command {
+    // name
+    let program = get_command_name(command.expr, state);
 
-    let args = get_command_args(command.args, state)?;
+    // args
+    let args = get_command_args(command.args, state);
 
-    let mut ps_command = process::Command::new(&program);
+    // stdin
+    let stdin = if state.pipe.is_recvable() {
+        unsafe { process::Stdio::from_raw_fd(state.pipe.recv()) }
+    } else {
+        process::Stdio::inherit()
+    };
+
+    // stdout
+    let stdout = if state.pipe.is_sendable() {
+        process::Stdio::piped()
+    } else {
+        process::Stdio::inherit()
+    };
+
+    // stderr
+    let stderr = process::Stdio::inherit();
+
+    let mut ps_command = process::Command::new(program);
 
     ps_command.args(args);
 
-    ps_command.stdin(state.stdin.take().unwrap_or(process::Stdio::inherit()));
+    ps_command.stdin(stdin);
 
-    ps_command.stdout(state.stdout.take().unwrap_or(process::Stdio::inherit()));
+    ps_command.stdout(stdout);
 
-    ps_command.stderr(state.stderr.take().unwrap_or(process::Stdio::inherit()));
+    ps_command.stderr(stderr);
 
-    Ok(ps_command)
+    ps_command
 }
 
-fn get_command_args(args: Vec<flat_ast::Expr>, state: &mut State) -> Result<Vec<String>> {
+fn get_command_args(args: Vec<flat_ast::Expr>, state: &mut State) -> Vec<String> {
     let mut v = Vec::with_capacity(args.len());
 
     args.iter().for_each(|arg| match arg.to_owned() {
@@ -179,7 +217,7 @@ fn get_command_args(args: Vec<flat_ast::Expr>, state: &mut State) -> Result<Vec<
                 .vars
                 .get(&ident)
                 .unwrap_or(&String::default())
-                .to_owned(),
+                .to_string(),
         ),
         flat_ast::Expr::USize(number) => v.push(number.to_string()),
         _ => {
@@ -187,22 +225,21 @@ fn get_command_args(args: Vec<flat_ast::Expr>, state: &mut State) -> Result<Vec<
         }
     });
 
-    Ok(v)
+    v
 }
 
-fn get_command_name(expr: flat_ast::Expr, state: &mut State) -> Result<String> {
-
+fn get_command_name(expr: flat_ast::Expr, state: &mut State) -> String {
     match expr {
-        flat_ast::Expr::String(string) => Ok(string),
+        flat_ast::Expr::String(string) => string,
 
-        flat_ast::Expr::Ident(ident) => Ok(state
+        flat_ast::Expr::Ident(ident) => state
             .vars
             .get(&ident)
             .unwrap_or(&String::default())
-            .to_owned()),
+            .to_string(),
 
-        flat_ast::Expr::USize(number) => Ok(number.to_string()),
+        flat_ast::Expr::USize(number) => number.to_string(),
 
-        _ => Err(Error::DUMMY),
+        _ => todo!(),
     }
 }

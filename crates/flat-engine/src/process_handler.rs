@@ -79,31 +79,29 @@ impl ProcessHandler {
 
                 // check if the process was killed
                 kill.map_err(|_| Error::new(ErrorKind::Failure, "Failed to kill the process."))?;
-
-                return Ok(());
             }
 
             Ok(())
         })
     }
 
-    /// Kill all processes
-    pub fn kill_all(&mut self) -> Result<()> {
-        self.0.iter_mut().try_for_each(|ps| -> Result<()> {
-            // try to kill the process
-            let kill = ps.kill();
+    // Kill all processes
+    // pub fn kill_all(&mut self) -> Result<()> {
+    //     self.0.iter_mut().try_for_each(|ps| -> Result<()> {
+    //         // try to kill the process
+    //         let kill = ps.kill();
 
-            // drop the process
-            unsafe {
-                ManuallyDrop::drop(ps);
-            }
+    //         // drop the process
+    //         unsafe {
+    //             ManuallyDrop::drop(ps);
+    //         }
 
-            // check if the process was killed
-            kill.map_err(|_| Error::new(ErrorKind::Failure, "Failed to kill the process."))?;
+    //         // check if the process was killed
+    //         kill.map_err(|_| Error::new(ErrorKind::Failure, "Failed to kill the process."))?;
 
-            Ok(())
-        })
-    }
+    //         Ok(())
+    //     })
+    // }
 
     /// Wait for all processes to finish
     pub fn wait(&mut self) -> Vec<(u32, std::process::ExitStatus)> {
@@ -122,16 +120,101 @@ impl ProcessHandler {
         v
     }
 
-    /// Wait for all processes to finish and leak them
-    pub unsafe fn wait_and_leak(&mut self) -> Vec<(u32, std::process::ExitStatus)> {
-        let mut v = Vec::with_capacity(self.0.len());
+    // Wait for all processes to finish and leak them
+    // pub unsafe fn wait_and_leak(&mut self) -> Vec<(u32, std::process::ExitStatus)> {
+    //     let mut v = Vec::with_capacity(self.0.len());
 
-        self.0.iter_mut().for_each(|ps| {
-            if let Ok(status) = ps.wait() {
-                v.push((ps.id(), status));
-            }
+    //     self.0.iter_mut().for_each(|ps| {
+    //         if let Ok(status) = ps.wait() {
+    //             v.push((ps.id(), status));
+    //         }
+    //     });
+
+    //     v
+    // }
+}
+
+impl Drop for ProcessHandler {
+    fn drop(&mut self) {
+        self.0.iter_mut().for_each(|ps| unsafe {
+            ManuallyDrop::drop(ps);
         });
+    }
+}
 
-        v
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_process_handler() {
+        let handler = ProcessHandler::new();
+
+        assert_eq!(handler.is_empty(), true);
+
+        assert_eq!(handler.len(), 0);
+    }
+
+    #[test]
+    fn test_process_handler_push() {
+        let mut handler = ProcessHandler::new();
+
+        let ps = std::process::Command::new("echo")
+            .arg("Hello")
+            .spawn()
+            .unwrap();
+
+        let pid = handler.push(ps);
+
+        assert_eq!(handler.len(), 1);
+
+        assert_eq!(handler.get(pid).unwrap().id(), pid);
+    }
+
+    #[test]
+    fn test_process_handler_pop() {
+        let mut handler = ProcessHandler::new();
+
+        let ps = std::process::Command::new("echo")
+            .arg("Hello")
+            .spawn()
+            .unwrap();
+
+        let pid = handler.push(ps);
+
+        assert_eq!(handler.len(), 1);
+
+        assert_eq!(handler.pop().unwrap().id(), pid);
+
+        assert_eq!(handler.len(), 0);
+    }
+
+    #[test]
+    fn test_process_handler_wait() {
+        let mut handler = ProcessHandler::new();
+
+        let ps1 = std::process::Command::new("echo")
+            .arg("hello")
+            .spawn()
+            .unwrap();
+
+        let ps2 = std::process::Command::new("echo")
+            .arg("world")
+            .spawn()
+            .unwrap();
+
+        handler.push(ps1);
+
+        handler.push(ps2);
+
+        let v = handler.wait();
+
+        assert_eq!(v.len(), 2);
+
+        for (pid, status) in v {
+            assert_eq!(status.success(), true);
+
+            assert_eq!(handler.get(pid).unwrap().id(), pid);
+        }
     }
 }

@@ -1,13 +1,14 @@
+
 // use flat_common::{error::Error, result::Result};
-// #[cfg(any(target_os = "linux", target_os = "macos"))]
-// mod unix;
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+mod unix;
 
-// #[cfg(any(target_os = "linux", target_os = "macos"))]
-// pub use unix::Pipe;
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+pub use unix::Pipe;
 
 
 
-// /// ThreadPipe is multi platform
+// ThreadPipe is multi platform
 // #[derive(Debug)]
 // pub struct ThreadPipe(
 //     std::sync::mpsc::Sender<std::process::Stdio>,

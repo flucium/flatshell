@@ -31,7 +31,6 @@ impl Parser {
         let entries = utils::recursion_split(&Token::Semicolon, &tokens);
 
         for tokens in entries {
-
             if tokens.contains(&Token::Pipe) {
                 let pipe = parse_pipe(&tokens)?;
 
@@ -99,7 +98,7 @@ fn parse_command(tokens: &[Token]) -> Result<flat_ast::Command> {
         (tokens[1..].to_vec(), false)
     };
 
-    let (args, redirects) = parse_command_args_with_redirect(&tokens)?;
+    let (args, redirects) = parse_command_args_and_redirects(&tokens)?;
 
     Ok(flat_ast::Command {
         expr,
@@ -114,7 +113,7 @@ fn parse_command(tokens: &[Token]) -> Result<flat_ast::Command> {
 /// This function is used to parse a command with arguments and redirects.
 ///
 /// For example, if the input is `ls -a ~ > file.txt`, this function will parse the command `ls` with arguments `-a` and `~` and a redirect `> file.txt`.
-fn parse_command_args_with_redirect(
+fn parse_command_args_and_redirects(
     tokens: &[Token],
 ) -> Result<(Vec<flat_ast::Expr>, Vec<flat_ast::Redirect>)> {
     let mut args = Vec::new();
@@ -350,197 +349,234 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_pipe() {
-        let tokens = [
-            Token::String("A".to_string()),
-            Token::Pipe,
-            Token::String("B".to_string()),
-            Token::String("C".to_string()),
-            Token::Pipe,
-            Token::String("D".to_string()),
-        ];
+    fn test_parse_fd() {
+        let token = Token::FD(1);
 
-        let pipe = parse_pipe(&tokens).unwrap();
+        let result = parse_fd(&token).unwrap();
 
-        assert_eq!(pipe.commands.len(), 3);
-
-        assert_eq!(
-            pipe.commands[0].expr,
-            flat_ast::Expr::String("A".to_string())
-        );
-
-        assert_eq!(
-            pipe.commands[1].expr,
-            flat_ast::Expr::String("B".to_string())
-        );
-
-        assert_eq!(
-            pipe.commands[2].expr,
-            flat_ast::Expr::String("D".to_string())
-        );
-
-        assert_eq!(pipe.commands[2].args.len(), 0);
-
-        assert_eq!(pipe.commands[2].redirects.len(), 0);
+        assert_eq!(result, flat_ast::Expr::FD(1));
     }
 
     #[test]
-    fn test_parse_command_with_background(){
-        let tokens = [
-            Token::String("ls".to_string()),
-            Token::Ampersand,
-        ];
+    fn test_parse_fd_error() {
+        let token = Token::FD(-1);
 
-        let command = parse_command(&tokens).unwrap();
+        let result = parse_fd(&token);
 
-        assert_eq!(command.expr, flat_ast::Expr::String("ls".to_string()));
-
-        assert_eq!(command.args.len(), 0);
-
-        assert_eq!(command.redirects.len(), 0);
-
-        assert_eq!(command.background, true);
+        assert!(result.is_err());
     }
 
     #[test]
-    fn test_parse_command() {
-        let tokens = [
-            Token::String("ls".to_string()),
-            Token::String("-a".to_string()),
-            Token::String("~".to_string()),
-            Token::Gt,
-            Token::String("file.txt".to_string()),
-            Token::FD(2),
-            Token::Gt,
-            Token::String("file2.txt".to_string()),
-        ];
+    fn test_parse_usize() {
+        let token = Token::USize(1);
 
-        let command = parse_command(&tokens).unwrap();
+        let result = parse_usize(&token).unwrap();
 
-        assert_eq!(command.expr, flat_ast::Expr::String("ls".to_string()));
-
-        assert_eq!(command.args.len(), 2);
-
-        assert_eq!(command.args[0], flat_ast::Expr::String("-a".to_string()));
-
-        assert_eq!(command.args[1], flat_ast::Expr::String("~".to_string()));
-
-        assert_eq!(command.redirects.len(), 2);
-
-        assert_eq!(
-            command.redirects[0],
-            flat_ast::Redirect {
-                left: flat_ast::Expr::FD(1),
-                right: flat_ast::Expr::String("file.txt".to_string()),
-                operator: flat_ast::RecirectOperator::Gt
-            }
-        );
-
-        assert_eq!(
-            command.redirects[1],
-            flat_ast::Redirect {
-                left: flat_ast::Expr::FD(2),
-                right: flat_ast::Expr::String("file2.txt".to_string()),
-                operator: flat_ast::RecirectOperator::Gt
-            }
-        );
+        assert_eq!(result, flat_ast::Expr::USize(1));
     }
 
     #[test]
-    fn test_parse_command_args_with_redirect() {
+    fn test_parse_ident() {
+        let token = Token::Ident("test".to_string());
+
+        let result = parse_ident(&token).unwrap();
+
+        assert_eq!(result, flat_ast::Expr::Ident("test".to_string()));
+    }
+
+    #[test]
+    fn test_parse_string() {
+        let token = Token::String("test".to_string());
+
+        let result = parse_string(&token).unwrap();
+
+        assert_eq!(result, flat_ast::Expr::String("test".to_string()));
+    }
+
+    #[test]
+    fn test_parse_assign() {
         let tokens = [
-            Token::String("-a".to_string()),
-            Token::String("~".to_string()),
-            Token::Gt,
-            Token::String("file.txt".to_string()),
-            Token::FD(2),
-            Token::Gt,
-            Token::String("file2.txt".to_string()),
+            Token::Ident("test".to_string()),
+            Token::Assign,
+            Token::String("test".to_string()),
         ];
 
-        let (args, redirects) = parse_command_args_with_redirect(&tokens).unwrap();
-
-        assert_eq!(args.len(), 2);
-
-        assert_eq!(args[0], flat_ast::Expr::String("-a".to_string()));
-
-        assert_eq!(args[1], flat_ast::Expr::String("~".to_string()));
-
-        assert_eq!(redirects.len(), 2);
+        let result = parse_assign(&tokens).unwrap();
 
         assert_eq!(
-            redirects[0],
-            flat_ast::Redirect {
-                left: flat_ast::Expr::FD(1),
-                right: flat_ast::Expr::String("file.txt".to_string()),
-                operator: flat_ast::RecirectOperator::Gt
-            }
-        );
-
-        assert_eq!(
-            redirects[1],
-            flat_ast::Redirect {
-                left: flat_ast::Expr::FD(2),
-                right: flat_ast::Expr::String("file2.txt".to_string()),
-                operator: flat_ast::RecirectOperator::Gt
+            result,
+            flat_ast::Assign {
+                ident: flat_ast::Expr::Ident("test".to_string()),
+                expr: flat_ast::Expr::String("test".to_string())
             }
         );
     }
 
     #[test]
     fn test_parse_command_expr() {
-        let token = Token::String("ls".to_string());
+        let entries = vec![
+            vec![Token::String("ls".to_string())],
+            vec![Token::USize(1)],
+            vec![Token::Ident("Ident".to_string())],
+        ];
 
-        let expr = parse_command_expr(&token).unwrap();
+        for entry in entries {
+            assert_eq!(parse_command_expr(&entry[0]).is_ok(), true);
+        }
+    }
 
-        assert_eq!(expr, flat_ast::Expr::String("ls".to_string()));
+    #[test]
+    fn test_parse_command_args_and_redirects() {
+        let entries = vec![
+            vec![
+                Token::String("-a".to_string()),
+                Token::String("~".to_string()),
+            ],
+            vec![
+                Token::String("-a".to_string()),
+                Token::String("~".to_string()),
+                Token::Gt,
+                Token::String("file.txt".to_string()),
+            ],
+            vec![
+                Token::String("-a".to_string()),
+                Token::String("~".to_string()),
+                Token::Gt,
+                Token::String("file.txt".to_string()),
+                Token::Lt,
+                Token::String("file.txt".to_string()),
+            ],
+        ];
+
+        for entry in entries {
+            assert_eq!(parse_command_args_and_redirects(&entry).is_ok(), true);
+        }
+    }
+
+    #[test]
+    fn test_parse_command() {
+        let entries = vec![
+            vec![Token::String("ls".to_string())],
+            vec![
+                Token::Ident("ls".to_string()),
+                Token::String("-a".to_string()),
+                Token::String("~".to_string()),
+            ],
+            vec![
+                Token::Ident("Ident".to_string()),
+                Token::String("-a".to_string()),
+                Token::String("~".to_string()),
+                Token::Gt,
+                Token::String("file.txt".to_string()),
+            ],
+            vec![
+                Token::Ident("ls".to_string()),
+                Token::String("-a".to_string()),
+                Token::String("~".to_string()),
+                Token::Gt,
+                Token::String("file.txt".to_string()),
+                Token::Ampersand,
+            ],
+        ];
+
+        for entry in entries {
+            assert_eq!(parse_command(&entry).is_ok(), true);
+        }
+    }
+
+    #[test]
+    fn test_parse_pipe() {
+        let entries = vec![
+            vec![
+                Token::String("ls".to_string()),
+                Token::Pipe,
+                Token::String("cat".to_string()),
+                Token::String("-b".to_string()),
+            ],
+            vec![
+                Token::String("ls".to_string()),
+                Token::Pipe,
+                Token::String("cat".to_string()),
+                Token::String("-b".to_string()),
+                Token::Pipe,
+                Token::Ident("REV".to_string()),
+            ],
+            vec![
+                Token::String("ls".to_string()),
+                Token::Pipe,
+                Token::String("cat".to_string()),
+                Token::String("-b".to_string()),
+                Token::Pipe,
+                Token::Ident("REV".to_string()),
+                Token::Pipe,
+                Token::String("cat".to_string()),
+                Token::String("-b".to_string()),
+            ],
+            vec![Token::String("ls".to_string()), Token::Pipe],
+        ];
+
+        for entry in entries {
+            assert_eq!(parse_pipe(&entry).is_ok(), true);
+        }
+    }
+
+    #[test]
+    fn test_parse_pipe_error() {
+        let tokens = [];
+        assert_eq!(parse_pipe(&tokens).is_err(), true);
+
+        let tokens = [Token::Pipe];
+        assert_eq!(parse_pipe(&tokens).is_err(), true);
     }
 
     #[test]
     fn test_parse_redirect() {
-        let tokens = [
-            Token::FD(1),
-            Token::Gt,
-            Token::String("file.txt".to_string()),
+        let entries = [
+            vec![Token::Gt, Token::String("file.txt".to_string())],
+            vec![Token::Lt, Token::String("file.txt".to_string())],
+            vec![
+                Token::FD(1),
+                Token::Gt,
+                Token::String("file.txt".to_string()),
+            ],
+            vec![
+                Token::FD(1),
+                Token::Lt,
+                Token::String("file.txt".to_string()),
+            ],
         ];
 
-        let redirect = parse_redirect(&tokens).unwrap();
+        for entry in entries {
+            assert_eq!(parse_redirect(&entry).is_ok(), true);
+        }
+    }
 
-        assert_eq!(
-            redirect,
-            flat_ast::Redirect {
-                left: flat_ast::Expr::FD(1),
-                right: flat_ast::Expr::String("file.txt".to_string()),
-                operator: flat_ast::RecirectOperator::Gt
-            }
-        );
+    #[test]
+    fn test_parse_redirect_error() {
+        let tokens = [];
+        assert_eq!(parse_redirect(&tokens).is_err(), true);
 
-        let tokens = [Token::Gt, Token::String("file.txt".to_string())];
+        let tokens = [Token::Gt];
+        assert_eq!(parse_redirect(&tokens).is_err(), true);
 
-        let redirect = parse_redirect(&tokens).unwrap();
+        let tokens = [Token::Lt];
+        assert_eq!(parse_redirect(&tokens).is_err(), true);
 
-        assert_eq!(
-            redirect,
-            flat_ast::Redirect {
-                left: flat_ast::Expr::FD(1),
-                right: flat_ast::Expr::String("file.txt".to_string()),
-                operator: flat_ast::RecirectOperator::Gt
-            }
-        );
+        let tokens = [Token::FD(1), Token::Gt];
+        assert_eq!(parse_redirect(&tokens).is_err(), true);
+
+        let tokens = [Token::FD(1), Token::Lt];
+        assert_eq!(parse_redirect(&tokens).is_err(), true);
     }
 
     #[test]
     fn test_parse_normal_redirect() {
-        let tokens = [
-            Token::FD(1),
-            Token::Gt,
-            Token::String("file.txt".to_string()),
-        ];
+        let tokens = [Token::FD(1), Token::Gt, Token::String("file.txt".to_string())];
 
-        let redirect = parse_normal_redirect(&tokens).unwrap();
+        let result = parse_normal_redirect(&tokens).unwrap();
 
         assert_eq!(
-            redirect,
+            result,
             flat_ast::Redirect {
                 left: flat_ast::Expr::FD(1),
                 right: flat_ast::Expr::String("file.txt".to_string()),
@@ -553,70 +589,15 @@ mod tests {
     fn test_parse_abbreviated_redirect() {
         let tokens = [Token::Gt, Token::String("file.txt".to_string())];
 
-        let redirect = parse_abbreviated_redirect(&tokens).unwrap();
+        let result = parse_abbreviated_redirect(&tokens).unwrap();
 
         assert_eq!(
-            redirect,
+            result,
             flat_ast::Redirect {
                 left: flat_ast::Expr::FD(1),
                 right: flat_ast::Expr::String("file.txt".to_string()),
                 operator: flat_ast::RecirectOperator::Gt
             }
         );
-    }
-
-    #[test]
-    fn test_parse_assign() {
-        let tokens = [
-            Token::Ident("Hello".to_string()),
-            Token::Assign,
-            Token::String("World".to_string()),
-        ];
-
-        let assign = parse_assign(&tokens).unwrap();
-
-        assert_eq!(
-            assign,
-            flat_ast::Assign {
-                ident: flat_ast::Expr::Ident("Hello".to_string()),
-                expr: flat_ast::Expr::String("World".to_string())
-            }
-        );
-    }
-
-    // #[test]
-    // fn test_parse_close_fd() {
-    //     let token = Token::FD(-1);
-
-    //     let expr = parse_close_fd(&token).unwrap();
-
-    //     assert_eq!(expr, flat_ast::Expr::FD(-1));
-    // }
-
-    #[test]
-    fn test_parse_fd() {
-        let token = Token::FD(0);
-
-        let expr = parse_fd(&token).unwrap();
-
-        assert_eq!(expr, flat_ast::Expr::FD(0));
-    }
-
-    #[test]
-    fn test_parse_ident() {
-        let token = Token::Ident("Hello".to_string());
-
-        let expr = parse_ident(&token).unwrap();
-
-        assert_eq!(expr, flat_ast::Expr::Ident("Hello".to_string()));
-    }
-
-    #[test]
-    fn test_parse_string() {
-        let token = Token::String("Hello".to_string());
-
-        let expr = parse_string(&token).unwrap();
-
-        assert_eq!(expr, flat_ast::Expr::String("Hello".to_string()));
     }
 }

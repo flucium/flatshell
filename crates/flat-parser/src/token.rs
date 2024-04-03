@@ -82,25 +82,48 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_token_len() {
+        assert_eq!(Token::EOF.len(), 0);
+        assert_eq!(Token::Pipe.len(), 1);
+        assert_eq!(Token::Assign.len(), 1);
+        assert_eq!(Token::Gt.len(), 1);
+        assert_eq!(Token::Lt.len(), 1);
+        // assert_eq!(Token::Plus.len(), 1);
+        // assert_eq!(Token::Minus.len(), 1);
+        // assert_eq!(Token::Star.len(), 1);
+        // assert_eq!(Token::Slash.len(), 1);
+        assert_eq!(Token::Semicolon.len(), 1);
+        assert_eq!(Token::Dollar.len(), 1);
+        assert_eq!(Token::Ampersand.len(), 1);
+        // assert_eq!(Token::LeftParen.len(), 1);
+        // assert_eq!(Token::RightParen.len(), 1);
+        assert_eq!(Token::String("hello".to_string()).len(), 5);
+        assert_eq!(Token::Ident("a".to_string()).len(), 1);
+        assert_eq!(Token::USize(1).len(), 1);
+        // assert_eq!(Token::ISize(1).len(), 1);
+        assert_eq!(Token::FD(1).len(), 1);
+    }
+
+    #[test]
     fn test_token_display() {
-        assert_eq!(Token::EOF.to_string(), "EOF");
-        assert_eq!(Token::Pipe.to_string(), "|");
-        assert_eq!(Token::Assign.to_string(), "=");
-        assert_eq!(Token::Gt.to_string(), ">");
-        assert_eq!(Token::Lt.to_string(), "<");
-        // assert_eq!(Token::Plus.to_string(), "+");
-        // assert_eq!(Token::Minus.to_string(), "-");
-        // assert_eq!(Token::Star.to_string(), "*");
-        // assert_eq!(Token::Slash.to_string(), "/");
-        assert_eq!(Token::Semicolon.to_string(), ";");
-        assert_eq!(Token::Dollar.to_string(), "$");
-        assert_eq!(Token::Ampersand.to_string(), "&");
-        // assert_eq!(Token::LeftParen.to_string(), "(");
-        // assert_eq!(Token::RightParen.to_string(), ")");
-        assert_eq!(Token::String("hello".to_string()).to_string(), "hello");
-        assert_eq!(Token::Ident("a".to_string()).to_string(), "a");
-        assert_eq!(Token::USize(1).to_string(), "1");
-        // assert_eq!(Token::ISize(1).to_string(), "1");
-        assert_eq!(Token::FD(1).to_string(), "1");
+        assert_eq!(format!("{}", Token::EOF), "EOF");
+        assert_eq!(format!("{}", Token::Pipe), "|");
+        assert_eq!(format!("{}", Token::Assign), "=");
+        assert_eq!(format!("{}", Token::Gt), ">");
+        assert_eq!(format!("{}", Token::Lt), "<");
+        // assert_eq!(format!("{}", Token::Plus), "+");
+        // assert_eq!(format!("{}", Token::Minus), "-");
+        // assert_eq!(format!("{}", Token::Star), "*");
+        // assert_eq!(format!("{}", Token::Slash), "/");
+        assert_eq!(format!("{}", Token::Semicolon), ";");
+        assert_eq!(format!("{}", Token::Dollar), "$");
+        assert_eq!(format!("{}", Token::Ampersand), "&");
+        // assert_eq!(format!("{}", Token::LeftParen), "(");
+        // assert_eq!(format!("{}", Token::RightParen), ")");
+        assert_eq!(format!("{}", Token::String("hello".to_string())), "hello");
+        assert_eq!(format!("{}", Token::Ident("a".to_string())), "a");
+        assert_eq!(format!("{}", Token::USize(1)), "1");
+        // assert_eq!(format!("{}", Token::ISize(1)), "1");
+        assert_eq!(format!("{}", Token::FD(1)), "1");
     }
 }

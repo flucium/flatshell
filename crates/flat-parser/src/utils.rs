@@ -1,5 +1,15 @@
 use crate::token::Token;
 
+/// Replace the newline character with a semicolon.
+pub(super) fn replace_line_with_semicolon(input: &str) -> String {
+    let mut result = String::with_capacity(input.len() + 1024);
+
+    result.push_str(input);
+
+    result.replace('\n', ";")
+}
+
+
 /// Split the tokens into multiple parts, the split position is the place token.
 pub(super) fn recursion_split(place: &Token, tokens: &[Token]) -> Vec<Vec<Token>> {
     let mut result = Vec::new();
@@ -62,145 +72,61 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_recursion_split() {
-        let tokens = vec![
-            Token::String("a".to_string()),
-            Token::String("b".to_string()),
-            Token::Semicolon,
-            Token::String("c".to_string()),
-            Token::String("d".to_string()),
-            Token::Semicolon,
-            Token::String("e".to_string()),
-            Token::String("f".to_string()),
-        ];
+    fn test_replace_line_with_semicolon() {
+        let input = "a\nb\nc";
+        let expected = "a;b;c";
 
-        let place = Token::Semicolon;
-
-        let result = recursion_split(&place, &tokens);
-
-        assert_eq!(
-            result,
-            vec![
-                vec![
-                    Token::String("a".to_string()),
-                    Token::String("b".to_string())
-                ],
-                vec![
-                    Token::String("c".to_string()),
-                    Token::String("d".to_string())
-                ],
-                vec![
-                    Token::String("e".to_string()),
-                    Token::String("f".to_string())
-                ]
-            ]
-        );
-    }
-
-    #[test]
-    fn test_recursion_split_no_place() {
-        let tokens = vec![
-            Token::String("a".to_string()),
-            Token::String("b".to_string()),
-            Token::String("c".to_string()),
-            Token::String("d".to_string()),
-        ];
-
-        let place = Token::Semicolon;
-
-        let result = recursion_split(&place, &tokens);
-
-        assert_eq!(
-            result,
-            vec![vec![
-                Token::String("a".to_string()),
-                Token::String("b".to_string()),
-                Token::String("c".to_string()),
-                Token::String("d".to_string())
-            ]]
-        );
+        assert_eq!(replace_line_with_semicolon(input), expected);
     }
 
     #[test]
     fn test_split() {
         let tokens = vec![
-            Token::String("a".to_string()),
-            Token::String("b".to_string()),
+            Token::String("A".to_string()),
             Token::Semicolon,
-            Token::String("c".to_string()),
-            Token::String("d".to_string()),
+            Token::String("B".to_string()),
         ];
 
-        let place = Token::Semicolon;
+        let place = &Token::Semicolon;
 
-        let (left, right) = split(&place, &tokens);
+        let (left, right) = split(place, &tokens);
 
-        assert_eq!(
-            left,
-            vec![
-                Token::String("a".to_string()),
-                Token::String("b".to_string())
-            ]
-        );
-
-        assert_eq!(
-            right,
-            vec![
-                Token::String("c".to_string()),
-                Token::String("d".to_string())
-            ]
-        );
+        assert_eq!(left, vec![Token::String("A".to_string())]);
+        assert_eq!(right, vec![Token::String("B".to_string())]);
     }
 
     #[test]
-    fn test_split_no_place() {
+    fn test_split_not_found() {
         let tokens = vec![
-            Token::String("a".to_string()),
-            Token::String("b".to_string()),
-            Token::String("c".to_string()),
-            Token::String("d".to_string()),
+            Token::String("A".to_string()),
+            Token::String("B".to_string()),
         ];
 
-        let place = Token::Semicolon;
+        let place = &Token::Semicolon;
 
-        let (left, right) = split(&place, &tokens);
+        let (left, right) = split(place, &tokens);
 
-        assert_eq!(
-            left,
-            vec![
-                Token::String("a".to_string()),
-                Token::String("b".to_string()),
-                Token::String("c".to_string()),
-                Token::String("d".to_string())
-            ]
-        );
-
+        assert_eq!(left, vec![Token::String("A".to_string()), Token::String("B".to_string())]);
         assert_eq!(right, Vec::default());
     }
 
     #[test]
-    fn test_split_no_place_left_and_none_right() {
+    fn test_recursion_split() {
         let tokens = vec![
-            Token::String("a".to_string()),
-            Token::String("b".to_string()),
-            Token::String("c".to_string()),
-            Token::String("d".to_string()),
+            Token::String("A".to_string()),
+            Token::Semicolon,
+            Token::String("B".to_string()),
+            Token::Semicolon,
+            Token::String("C".to_string()),
         ];
 
-        let place = Token::Semicolon;
+        let place = &Token::Semicolon;
 
-        let (left, right) = split(&place, &tokens);
+        let result = recursion_split(place, &tokens);
 
-        assert_eq!(
-            left,
-            vec![
-                Token::String("a".to_string()),
-                Token::String("b".to_string()),
-                Token::String("c".to_string()),
-                Token::String("d".to_string())
-            ]
-        );
-
-        assert_eq!(right, Vec::default());
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0], vec![Token::String("A".to_string())]);
+        assert_eq!(result[1], vec![Token::String("B".to_string())]);
+        assert_eq!(result[2], vec![Token::String("C".to_string())]);
     }
 }

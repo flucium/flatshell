@@ -1,4 +1,5 @@
 use crate::token::Token;
+use super::utils::replace_line_with_semicolon;
 
 #[derive(Debug)]
 pub struct Lexer {
@@ -221,14 +222,6 @@ impl Iterator for Lexer {
     }
 }
 
-fn replace_line_with_semicolon(input: &str) -> String {
-    let mut result = String::with_capacity(input.len() + 1024);
-
-    result.push_str(input);
-
-    result.replace('\n', ";")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -286,14 +279,5 @@ mod tests {
                 Token::EOF
             ]
         );
-    }
-
-    #[test]
-    fn test_replace_line_with_semicolon() {
-        let input = "echo hello world\nping -c 3 github.com | cat -b";
-
-        let result = replace_line_with_semicolon(input);
-
-        assert_eq!(result, "echo hello world;ping -c 3 github.com | cat -b");
     }
 }

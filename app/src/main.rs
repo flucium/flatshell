@@ -1,10 +1,38 @@
-fn main() {}
-/*
-    let ast = flat_parser::Parser::new(flat_parser::Lexer::new("$A = ping;$A -c 3 flucium.net;ls ./ -a|cat -b"))
-        .parse()
-        .unwrap();
+use flat_engine::{eval, State};
+use flat_parser::{Lexer, Parser};
+use flat_terminal::{History, Terminal};
 
-    let  state = &mut flat_engine::State::new();
+#[inline]
+fn repl() {
+    let state = &mut State::new();
 
-    flat_engine::eval(ast, state).unwrap();
-*/
+    let mut terminal = Terminal::new();
+
+    terminal.set_history(History::new());
+
+    terminal.set_prompt("> ");
+
+    loop {
+        match terminal.read_line() {
+            Err(e) => {
+                panic!("Error: {}", e.message());
+            }
+            Ok(line) => {
+                let ast = match Parser::new(Lexer::new(&line)).parse() {
+                    Err(e) => {
+                        panic!("Error: {}", e.message());
+                    }
+                    Ok(ast) => ast,
+                };
+
+                if let Err(err) = eval(ast, state) {
+                    panic!("{}", err.message());
+                }
+            }
+        }
+    }
+}
+
+fn main() {
+    repl();
+}

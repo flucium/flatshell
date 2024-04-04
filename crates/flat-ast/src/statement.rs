@@ -55,7 +55,7 @@ impl Assign {
 pub struct Redirect {
     pub left: Expr,
     pub right: Expr,
-    pub operator: RecirectOperator,
+    pub operator: RedirectOperator,
 }
 
 impl Redirect {
@@ -69,12 +69,12 @@ impl Redirect {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
-pub enum RecirectOperator {
+pub enum RedirectOperator {
     Gt,
     Lt,
 }
 
-impl RecirectOperator {
+impl RedirectOperator {
     pub fn to_json(&self, is_pretty: bool) -> String {
         if is_pretty {
             serde_json::to_string_pretty(&self).unwrap()

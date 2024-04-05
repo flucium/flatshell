@@ -101,23 +101,17 @@ impl From<(ShVars, ProcessHandler, Pipe)> for State {
 pub fn eval(ast: flat_ast::FlatAst, state: &mut State) -> Result<()> {
     match ast.to_owned() {
         flat_ast::FlatAst::Semicolon(mut semicolon) => {
-            // Bad!
-            semicolon.reverse();
-
-            while let Some(ast) = semicolon.pop() {
+            while let Some(ast) = semicolon.pop_front() {
                 eval(ast, state)?;
             }
         }
         flat_ast::FlatAst::Pipe(mut pipe) => {
-            // Bad!
-            pipe.commands.reverse();
-
             state.pipe = Pipe::open();
 
-            while let Some(command) = pipe.commands.pop() {
+            while let Some(command) = pipe.pop_front() {
                 let mut ps_command = create_process_command(command, state);
 
-                if pipe.commands.is_empty() {
+                if pipe.is_empty() {
                     ps_command.stdout(process::Stdio::inherit());
                 }
 

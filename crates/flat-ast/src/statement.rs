@@ -1,3 +1,5 @@
+use super::ast::Ast;
+
 use super::expr::*;
 use serde::Serialize;
 
@@ -7,12 +9,11 @@ pub enum Statement {
     Assign(Assign),
 }
 
-impl Statement {
-    pub fn to_json(&self, is_pretty: bool) -> String {
-        if is_pretty {
-            serde_json::to_string_pretty(&self).unwrap()
-        } else {
-            serde_json::to_string(&self).unwrap()
+impl Ast for Statement {
+    fn to_json(&self, is_pretty: bool) -> String {
+        match self {
+            Statement::Command(command) => command.to_json(is_pretty),
+            Statement::Assign(assign) => assign.to_json(is_pretty),
         }
     }
 }
@@ -25,8 +26,8 @@ pub struct Command {
     pub background: bool,
 }
 
-impl Command {
-    pub fn to_json(&self, is_pretty: bool) -> String {
+impl Ast for Command {
+    fn to_json(&self, is_pretty: bool) -> String {
         if is_pretty {
             serde_json::to_string_pretty(&self).unwrap()
         } else {
@@ -41,8 +42,8 @@ pub struct Assign {
     pub expr: Expr,
 }
 
-impl Assign {
-    pub fn to_json(&self, is_pretty: bool) -> String {
+impl Ast for Assign {
+    fn to_json(&self, is_pretty: bool) -> String {
         if is_pretty {
             serde_json::to_string_pretty(&self).unwrap()
         } else {
@@ -58,8 +59,8 @@ pub struct Redirect {
     pub operator: RedirectOperator,
 }
 
-impl Redirect {
-    pub fn to_json(&self, is_pretty: bool) -> String {
+impl Ast for Redirect {
+    fn to_json(&self, is_pretty: bool) -> String {
         if is_pretty {
             serde_json::to_string_pretty(&self).unwrap()
         } else {
@@ -74,8 +75,8 @@ pub enum RedirectOperator {
     Lt,
 }
 
-impl RedirectOperator {
-    pub fn to_json(&self, is_pretty: bool) -> String {
+impl Ast for RedirectOperator {
+    fn to_json(&self, is_pretty: bool) -> String {
         if is_pretty {
             serde_json::to_string_pretty(&self).unwrap()
         } else {

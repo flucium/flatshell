@@ -2,8 +2,12 @@ mod statement;
 mod expr;
 mod pipe;
 
-use std::collections::VecDeque;
+// pub mod
+pub mod ast;
 
+// use
+use std::collections::VecDeque;
+use ast::Ast;
 use serde::Serialize;
 
 //pub use
@@ -45,11 +49,15 @@ impl FlatAst {
     }
 
 
-    pub fn to_json(&self, is_pretty: bool) -> String {
+
+}
+
+impl Ast for FlatAst {
+    fn to_json(&self, is_pretty: bool) -> String {
         if is_pretty {
             serde_json::to_string_pretty(&self).unwrap()
         } else {
             serde_json::to_string(&self).unwrap()
         }
-    }    
+    }
 }

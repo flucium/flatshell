@@ -1,5 +1,7 @@
 use std::collections::VecDeque;
 
+use super::ast::Ast;
+
 use super::Command;
 use serde::Serialize;
 
@@ -9,14 +11,6 @@ pub struct Pipe {
 }
 
 impl Pipe {
-    pub fn to_json(&self, is_pretty: bool) -> String {
-        if is_pretty {
-            serde_json::to_string_pretty(&self).unwrap()
-        } else {
-            serde_json::to_string(&self).unwrap()
-        }
-    }
-
     pub fn new() -> Self {
         Pipe {
             commands: VecDeque::new(),
@@ -50,3 +44,20 @@ impl From<VecDeque<Command>> for Pipe {
     }
 }
 
+impl From<&[Command]> for Pipe {
+    fn from(commands: &[Command]) -> Self {
+        Pipe {
+            commands: commands.iter().cloned().collect(),
+        }
+    }
+}
+
+impl Ast for Pipe {
+    fn to_json(&self, is_pretty: bool) -> String {
+        if is_pretty {
+            serde_json::to_string_pretty(&self).unwrap()
+        } else {
+            serde_json::to_string(&self).unwrap()
+        }
+    }
+}

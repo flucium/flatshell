@@ -1,4 +1,4 @@
-use flat_ast::{Assign, Command, Expr, FlatAst, Pipe, Redirect, RedirectOperator};
+use flat_ast::{Assign, Command, Expr, Pipe, Redirect, RedirectOperator};
 use flat_common::{
     error::{Error, ErrorKind},
     result::Result,

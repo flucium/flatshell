@@ -1,7 +1,7 @@
 use flat_ast::FlatAst;
 use flat_common::result::Result;
 
-use crate::lite_parser::{parse_assign, parse_command, parse_pipe};
+use super::lite_parser::{parse_assign, parse_command, parse_pipe};
 
 use super::Lexer;
 
@@ -57,5 +57,19 @@ impl Parser {
         }
 
         Ok(self.1.to_owned())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parser() {
+        let mut parser = Parser::new("echo hello; echo world");
+
+        let ast = parser.parse();
+
+        assert_eq!(ast.is_ok(), true);
     }
 }

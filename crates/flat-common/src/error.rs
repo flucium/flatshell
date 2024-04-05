@@ -8,6 +8,7 @@ pub enum ErrorKind {
     PermissionDenied,
     Interrupted,
     Failure,
+    LexerError,
     SyntaxError,
 }
 
@@ -21,6 +22,7 @@ impl ErrorKind {
             ErrorKind::PermissionDenied => "PermissionDenied",
             ErrorKind::Interrupted => "Interrupted",
             ErrorKind::Failure => "Failure",
+            ErrorKind::LexerError => "LexerError",
             ErrorKind::SyntaxError => "SyntaxError",
         }
     }

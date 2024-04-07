@@ -28,10 +28,10 @@ impl Line {
         self.0 += 1;
     }
 
-    pub(super) fn clear(&mut self) {
-        self.0 = 0;
-        self.1.clear();
-    }
+    // pub(super) fn clear(&mut self) {
+    //     self.0 = 0;
+    //     self.1.clear();
+    // }
 
     pub(super) fn len(&self) -> usize {
         self.1.len()
@@ -135,7 +135,7 @@ mod tests {
         line.insert(b'l');
         line.insert(b'o');
 
-        line.clear();
+        // line.clear();
 
         assert_eq!(line.0, 0);
         assert_eq!(line.1, vec![]);

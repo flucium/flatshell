@@ -18,6 +18,11 @@ const CURRENT_DIRECTORY: &str = "\\w";
 // Current directory full path
 const CURRENT_DIRECTORY_FULL: &str = "\\W";
 
+const HOST_NAME: &str = "\\h";
+
+// Default prompt
+pub const DEFAULT_PROMPT: &str = "\\u@\\w $ ";
+
 /// Get user name from environment variable
 fn get_user_name() -> String {
     env::var("USER").unwrap_or_default()
@@ -40,6 +45,11 @@ fn get_current_directory_full() -> String {
         .unwrap_or(path::PathBuf::from("./"))
         .to_string_lossy()
         .to_string()
+}
+
+/// Get host name from environment variable
+fn get_host_name() -> String {
+    env::var("HOSTNAME").unwrap_or_default()
 }
 
 fn decode(source: impl Into<String>) -> String {
@@ -69,6 +79,10 @@ fn decode(source: impl Into<String>) -> String {
         string = string.replace(CURRENT_DIRECTORY_FULL, &get_current_directory_full());
     }
 
+    if string.contains(HOST_NAME) {
+        string = string.replace(HOST_NAME, &get_host_name());
+    }
+
     string
 }
 
@@ -83,6 +97,31 @@ mod tests {
     #[test]
     fn test_get_user_name() {
         assert_eq!(get_user_name(), env::var("USER").unwrap_or_default());
+    }
+
+    #[test]
+    fn test_get_current_directory() {
+        assert_eq!(
+            get_current_directory(),
+            env::current_dir()
+                .unwrap()
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+        );
+    }
+
+    #[test]
+    fn test_get_current_directory_full() {
+        assert_eq!(
+            get_current_directory_full(),
+            env::current_dir().unwrap().to_string_lossy()
+        );
+    }
+
+    #[test]
+    fn test_get_host_name() {
+        assert_eq!(get_host_name(), env::var("HOSTNAME").unwrap_or_default());
     }
 
     #[test]

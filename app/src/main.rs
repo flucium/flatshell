@@ -6,7 +6,7 @@ use flat_terminal::Terminal;
 
 // -- <Bat Code> --
 fn open_profile() -> ShVars {
-    match ShVars::open(path::Path::new("./profile.fsh")) {
+    match ShVars::open(path::Path::new("./temp/profile.fsh")) {
         Ok(shvars) => shvars,
         Err(err) => {
             if err.kind() == &flat_common::error::ErrorKind::NotFound {
@@ -14,7 +14,7 @@ fn open_profile() -> ShVars {
 
                 string.push_str("$FSH_PROMPT = \"> \";\n");
 
-                fs::File::create("./profile.fsh")
+                fs::File::create("./temp/profile.fsh")
                     .unwrap()
                     .write_all(string.as_bytes())
                     .unwrap();

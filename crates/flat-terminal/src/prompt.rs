@@ -7,7 +7,7 @@ const USER_NAME: &str = "\\u";
 const SHELL_NAME: &str = "\\s";
 
 // Shell full name
-const SHELL_F_NAME: &str = "\\S";
+const SHELL_NAME_FULL: &str = "\\S";
 
 // Shell version
 const SHELL_VERSION: &str = "\\v";
@@ -16,11 +16,30 @@ const SHELL_VERSION: &str = "\\v";
 const CURRENT_DIRECTORY: &str = "\\w";
 
 // Current directory full path
-const CURRENT_F_DIRECTORY: &str = "\\W";
+const CURRENT_DIRECTORY_FULL: &str = "\\W";
 
 /// Get user name from environment variable
 fn get_user_name() -> String {
     env::var("USER").unwrap_or_default()
+}
+
+/// Get current directory name from environment variable
+fn get_current_directory() -> String {
+    env::current_dir()
+        .unwrap_or(path::PathBuf::from("./"))
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string()
+}
+
+/// Get current directory full path from environment variable
+/// This function is not used in the code
+fn get_current_directory_full() -> String {
+    env::current_dir()
+        .unwrap_or(path::PathBuf::from("./"))
+        .to_string_lossy()
+        .to_string()
 }
 
 fn decode(source: impl Into<String>) -> String {
@@ -34,8 +53,8 @@ fn decode(source: impl Into<String>) -> String {
         string = string.replace(SHELL_NAME, "fsh");
     }
 
-    if string.contains(SHELL_F_NAME) {
-        string = string.replace(SHELL_F_NAME, "FlatShell");
+    if string.contains(SHELL_NAME_FULL) {
+        string = string.replace(SHELL_NAME_FULL, "FlatShell");
     }
 
     if string.contains(SHELL_VERSION) {
@@ -43,23 +62,11 @@ fn decode(source: impl Into<String>) -> String {
     }
 
     if string.contains(CURRENT_DIRECTORY) {
-        string = string.replace(
-            CURRENT_DIRECTORY,
-            &env::current_dir()
-                .unwrap_or(path::PathBuf::from("./"))
-                .file_name()
-                .unwrap_or_default()
-                .to_string_lossy(),
-        );
+        string = string.replace(CURRENT_DIRECTORY, &get_current_directory());
     }
 
-    if string.contains(CURRENT_F_DIRECTORY) {
-        string = string.replace(
-            CURRENT_F_DIRECTORY,
-            &env::current_dir()
-                .unwrap_or(path::PathBuf::from("./"))
-                .to_string_lossy(),
-        );
+    if string.contains(CURRENT_DIRECTORY_FULL) {
+        string = string.replace(CURRENT_DIRECTORY_FULL, &get_current_directory_full());
     }
 
     string
@@ -84,7 +91,7 @@ mod tests {
 
         assert_eq!(decode(SHELL_NAME), "fsh");
 
-        assert_eq!(decode(SHELL_F_NAME), "FlatShell");
+        assert_eq!(decode(SHELL_NAME_FULL), "FlatShell");
 
         assert_eq!(decode(SHELL_VERSION), "0.0.1");
 
@@ -98,7 +105,7 @@ mod tests {
         );
 
         assert_eq!(
-            decode(CURRENT_F_DIRECTORY),
+            decode(CURRENT_DIRECTORY_FULL),
             env::current_dir().unwrap().to_string_lossy()
         );
     }
@@ -109,7 +116,7 @@ mod tests {
 
         assert_eq!(prompt(SHELL_NAME), "fsh");
 
-        assert_eq!(prompt(SHELL_F_NAME), "FlatShell");
+        assert_eq!(prompt(SHELL_NAME_FULL), "FlatShell");
 
         assert_eq!(prompt(SHELL_VERSION), "0.0.1");
 
@@ -123,7 +130,7 @@ mod tests {
         );
 
         assert_eq!(
-            prompt(CURRENT_F_DIRECTORY),
+            prompt(CURRENT_DIRECTORY_FULL),
             env::current_dir().unwrap().to_string_lossy()
         );
     }

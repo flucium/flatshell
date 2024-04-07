@@ -1,7 +1,10 @@
 mod pipe;
 mod process_handler;
 mod sh_vars;
-use flat_common::{error::Error, result::Result};
+use flat_common::{
+    error::{Error, ErrorKind},
+    result::Result,
+};
 pub use pipe::*;
 pub use process_handler::*;
 pub use sh_vars::*;
@@ -12,7 +15,7 @@ use std::{
 };
 
 /*
-    ToDo: Error, Redirect
+    ToDo: Redirect, Builtin Command
 */
 
 #[derive(Debug)]
@@ -29,6 +32,10 @@ impl State {
             handler: ProcessHandler::new(),
             pipe: Pipe::new(),
         }
+    }
+
+    pub fn vars(&mut self) -> &mut ShVars {
+        &mut self.vars
     }
 }
 
@@ -94,7 +101,11 @@ impl From<(ProcessHandler, Pipe)> for State {
 
 impl From<(ShVars, ProcessHandler, Pipe)> for State {
     fn from((vars, handler, pipe): (ShVars, ProcessHandler, Pipe)) -> Self {
-        Self { vars, handler, pipe }
+        Self {
+            vars,
+            handler,
+            pipe,
+        }
     }
 }
 
@@ -109,15 +120,23 @@ pub fn eval(ast: flat_ast::FlatAst, state: &mut State) -> Result<()> {
             state.pipe = Pipe::open();
 
             while let Some(command) = pipe.pop_front() {
+                // let is_redirect = command.redirects.is_empty();
+
                 let mut ps_command = create_process_command(command, state);
+
+                // if pipe.is_empty() && is_redirect{
+                //     ps_command.stdout(process::Stdio::inherit());
+                // }
 
                 if pipe.is_empty() {
                     ps_command.stdout(process::Stdio::inherit());
                 }
 
-                let pid = state
-                    .handler
-                    .push(ps_command.spawn().expect("Failed to spawn process"));
+                let pid = state.handler.push(
+                    ps_command
+                        .spawn()
+                        .map_err(|_| Error::new(ErrorKind::NotFound, ""))?,
+                );
 
                 if let Some(child) = state.handler.get(pid) {
                     if let Some(stdout) = child.stdout.as_ref() {
@@ -187,6 +206,45 @@ fn create_process_command(command: flat_ast::Command, state: &mut State) -> proc
 
     // stderr
     let stderr = process::Stdio::inherit();
+
+    // redirect
+    // command.redirects.iter().for_each(|redirect| {
+    //     let left = match redirect.left {
+    //         flat_ast::Expr::FD(fd) => fd,
+    //         _ => {
+    //             todo!()
+    //         }
+    //     };
+
+    //     let right = match redirect.right.to_owned() {
+    //         flat_ast::Expr::String(string) => fs::File::options().create(true).write(true).read(true).open(string).unwrap(),
+    //         flat_ast::Expr::FD(fd) => unsafe { fs::File::from_raw_fd(fd) },
+    //         _ => {
+    //             todo!()
+    //         }
+    //     };
+
+    //     if !matches!(left, 0 | 1 | 2) { /*dup2 */ }
+
+    //     match redirect.operator {
+    //         flat_ast::RedirectOperator::Gt => {
+    //             if left == 1 {
+    //                 stdout = process::Stdio::from(right);
+    //             } else if left == 2 {
+    //                 stderr = process::Stdio::from(right);
+    //             } else {
+    //                 // error
+    //             }
+    //         }
+    //         flat_ast::RedirectOperator::Lt => {
+    //             if left == 0 {
+    //                 stdin = process::Stdio::from(right);
+    //             } else {
+    //                 // error
+    //             }
+    //         }
+    //     }
+    // });
 
     let mut ps_command = process::Command::new(program);
 

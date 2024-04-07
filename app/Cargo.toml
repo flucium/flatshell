@@ -13,3 +13,4 @@ flat-parser = {path = "../crates/flat-parser", version="0.0.1"}
 flat-ast = {path = "../crates/flat-ast", version="0.0.1"}
 flat-builtin = {path = "../crates/flat-builtin", version="0.0.1"}
 flat-engine = {path = "../crates/flat-engine", version="0.0.1"}
+flat-common = {path = "../crates/flat-common", version="0.0.1"}

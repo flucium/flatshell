@@ -4,8 +4,15 @@ use flat_common::{
 };
 use std::mem::ManuallyDrop;
 
+/// ProcessHandler is a Vec that stores processes (specifically, std::process::*). 
+/// 
+/// all process states are stored here.
+/// 
+/// Think of ProcessHandler as simply a Vector (Vec). 
+/// 
+/// to empty ProcessHandler, you can use high-level operations such as deleting the ProcessHandler instance. ProcessHandler does not provide a remove method like Vec. This is intentional.
 #[derive(Debug)]
-pub struct ProcessHandler(Vec<ManuallyDrop<std::process::Child>>);
+pub struct ProcessHandler(Vec<(ManuallyDrop<std::process::Child>, bool)>);
 
 impl ProcessHandler {
     /// Create a new handler
@@ -19,35 +26,45 @@ impl ProcessHandler {
     }
 
     /// Push a process to the handler
-    pub fn push(&mut self, ps: std::process::Child) -> u32 {
+    ///
+    /// # Arguments
+    /// - `ps` - The process to push
+    /// - `is_background` - If the process is a background process
+    ///
+    /// # Returns
+    /// The process id
+    pub fn push(&mut self, ps: std::process::Child, is_background: bool) -> u32 {
         let pid = ps.id();
 
-        self.0.push(ManuallyDrop::new(ps));
+        self.0.push((ManuallyDrop::new(ps), is_background));
 
         pid
     }
 
     /// Pop a process from the handler
     pub fn pop(&mut self) -> Option<std::process::Child> {
-        self.0.pop().map(|ps| ManuallyDrop::into_inner(ps))
+        self.0.pop().map(|(ps, _)| ManuallyDrop::into_inner(ps))
     }
 
     /// Get a process from the handler
     pub fn get(&self, pid: u32) -> Option<&std::process::Child> {
-        self.0.iter().find(|ps| ps.id() == pid).map(|ps| &**ps)
+        self.0
+            .iter()
+            .find(|(ps, _)| ps.id() == pid)
+            .map(|(ps, _)| &**ps)
     }
 
     /// Get a mutable process from the handler
     pub fn get_mut(&mut self, pid: u32) -> Option<&mut std::process::Child> {
         self.0
             .iter_mut()
-            .find(|ps| ps.id() == pid)
-            .map(|ps| &mut **ps)
+            .find(|(ps, _)| ps.id() == pid)
+            .map(|(ps, _)| &mut **ps)
     }
 
     /// Get all processes from the handler
     pub fn entries(&self) -> Vec<&std::process::Child> {
-        self.0.iter().map(|ps| &**ps).collect()
+        self.0.iter().map(|(ps, _)| &**ps).collect()
     }
 
     /// Check if the handler is empty
@@ -67,7 +84,7 @@ impl ProcessHandler {
 
     /// Kill a process
     pub fn kill(&mut self, pid: u32) -> Result<()> {
-        self.0.iter_mut().try_for_each(|ps| -> Result<()> {
+        self.0.iter_mut().try_for_each(|(ps, _)| -> Result<()> {
             if ps.id() == pid {
                 // try to kill the process
                 let kill = ps.kill();
@@ -85,17 +102,42 @@ impl ProcessHandler {
         })
     }
 
-    /// Wait for all processes to finish
+    /// Wait for all processes
+    ///
+    /// Processes specified in the background do not perform regular wait. treated as try_wait.
+    ///
+    /// foreground and Background processes appear to behave identically at first glance. 
+    /// 
+    /// however, background processes can be made to run completely in the background by combining them with nohup. additionally, such processes will be automatically closed after they terminate.
+    ///
+    /// Processes are dropped after wait, but this does not mean they are removed from the ProcessHandler. it simply refers to the dropping of the processes themselves.
+    /// 
+    /// # Returns
+    /// A vector of process id and exit status
     pub fn wait(&mut self) -> Vec<(u32, std::process::ExitStatus)> {
         let mut v = Vec::with_capacity(self.0.len());
 
-        self.0.iter_mut().for_each(|ps| {
-            if let Ok(status) = ps.wait() {
-                v.push((ps.id(), status));
-            }
+        self.0.iter_mut().for_each(|(ps, is_background)| {
+            if *is_background == true {
+                // background process
+                if let Ok(exitstatus) = ps.try_wait() {
+                    if let Some(exitstatus) = exitstatus {
+                        v.push((ps.id(), exitstatus));
+                    }
 
-            unsafe {
-                ManuallyDrop::drop(ps);
+                    unsafe {
+                        ManuallyDrop::drop(ps);
+                    }
+                }
+            } else {
+                // foreground process
+                if let Ok(status) = ps.wait() {
+                    v.push((ps.id(), status));
+                }
+
+                unsafe {
+                    ManuallyDrop::drop(ps);
+                }
             }
         });
 
@@ -104,8 +146,9 @@ impl ProcessHandler {
 }
 
 impl Drop for ProcessHandler {
+    /// It simply refers to the dropping of the processes themselves.
     fn drop(&mut self) {
-        self.0.iter_mut().for_each(|ps| unsafe {
+        self.0.iter_mut().for_each(|(ps, _)| unsafe {
             ManuallyDrop::drop(ps);
         });
     }
@@ -133,7 +176,7 @@ mod tests {
             .spawn()
             .unwrap();
 
-        let pid = handler.push(ps);
+        let pid = handler.push(ps, false);
 
         assert_eq!(handler.len(), 1);
 
@@ -149,7 +192,7 @@ mod tests {
             .spawn()
             .unwrap();
 
-        let pid = handler.push(ps);
+        let pid = handler.push(ps, false);
 
         assert_eq!(handler.len(), 1);
 
@@ -172,9 +215,9 @@ mod tests {
             .spawn()
             .unwrap();
 
-        handler.push(ps1);
+        handler.push(ps1, false);
 
-        handler.push(ps2);
+        handler.push(ps2, false);
 
         let v = handler.wait();
 

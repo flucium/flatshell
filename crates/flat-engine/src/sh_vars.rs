@@ -4,6 +4,7 @@ use flat_common::{
 };
 use std::{collections::HashMap, fs, io::Write, path::Path};
 
+/// Shell variables.
 #[derive(Debug, Clone)]
 pub struct ShVars(HashMap<String, String>);
 
@@ -22,8 +23,6 @@ impl ShVars {
     /// let mut vars = ShVars::new();
     ///
     /// vars.inherit(std::env::vars());
-    ///
-    /// vars.print();
     /// ```
     pub fn inherit(&mut self, env_vars: std::env::Vars) -> &mut Self {
         for (key, value) in env_vars {

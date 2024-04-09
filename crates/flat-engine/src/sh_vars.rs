@@ -219,27 +219,6 @@ impl ShVars {
         self.0.iter().collect()
     }
 
-    /// Print shell variables to stdout.
-    pub fn print(&self) -> Result<()> {
-        let mut stdout = std::io::stdout().lock();
-
-        for (key, value) in &self.0 {
-            let line = format!("{}={}\n", key, value);
-
-            stdout.write_all(line.as_bytes()).map_err(|err| {
-                if err.kind() == std::io::ErrorKind::Interrupted {
-                    Error::new(
-                        ErrorKind::Interrupted,
-                        "The operation was interrupted before it could be completed",
-                    )
-                } else {
-                    Error::new(ErrorKind::Other, &err.to_string())
-                }
-            })?;
-        }
-
-        Ok(())
-    }
 }
 
 impl From<HashMap<String, String>> for ShVars {

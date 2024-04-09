@@ -85,24 +85,6 @@ impl ProcessHandler {
         })
     }
 
-    // Kill all processes
-    // pub fn kill_all(&mut self) -> Result<()> {
-    //     self.0.iter_mut().try_for_each(|ps| -> Result<()> {
-    //         // try to kill the process
-    //         let kill = ps.kill();
-
-    //         // drop the process
-    //         unsafe {
-    //             ManuallyDrop::drop(ps);
-    //         }
-
-    //         // check if the process was killed
-    //         kill.map_err(|_| Error::new(ErrorKind::Failure, "Failed to kill the process."))?;
-
-    //         Ok(())
-    //     })
-    // }
-
     /// Wait for all processes to finish
     pub fn wait(&mut self) -> Vec<(u32, std::process::ExitStatus)> {
         let mut v = Vec::with_capacity(self.0.len());
@@ -119,19 +101,6 @@ impl ProcessHandler {
 
         v
     }
-
-    // Wait for all processes to finish and leak them
-    // pub unsafe fn wait_and_leak(&mut self) -> Vec<(u32, std::process::ExitStatus)> {
-    //     let mut v = Vec::with_capacity(self.0.len());
-
-    //     self.0.iter_mut().for_each(|ps| {
-    //         if let Ok(status) = ps.wait() {
-    //             v.push((ps.id(), status));
-    //         }
-    //     });
-
-    //     v
-    // }
 }
 
 impl Drop for ProcessHandler {

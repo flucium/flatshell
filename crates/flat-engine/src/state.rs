@@ -1,17 +1,12 @@
 use super::{Pipe, ProcessHandler, ShVars};
 
-/// The state of the shell
-/// 
-/// By keeping the state outside the body of the runtime or the evaluation function, state management becomes easier. 
-/// 
-/// there is no other purpose for this. therefore, this structure only provides(implementation) a function (new) for creating a State.
-/// 
-/// If you already have another structure that the State structure needs, and you want to inherit from them, you can use From.
 #[derive(Debug)]
 pub struct State {
-    pub(super) vars: ShVars,
-    pub(super) handler: ProcessHandler,
-    pub(super) pipe: Pipe,
+    vars: ShVars,
+    handler: ProcessHandler,
+    stdin: Pipe,
+    stdout: Pipe,
+    stderr: Pipe,
 }
 
 impl State {
@@ -20,77 +15,51 @@ impl State {
         Self {
             vars: ShVars::new(),
             handler: ProcessHandler::new(),
-            pipe: Pipe::new(),
+            stdin: Pipe::new(),
+            stdout: Pipe::new(),
+            stderr: Pipe::new(),
+            
         }
     }
-}
 
-impl From<ShVars> for State {
-    fn from(vars: ShVars) -> Self {
-        Self {
-            vars,
-            handler: ProcessHandler::new(),
-            pipe: Pipe::new(),
-        }
+    pub fn vars(&self) -> &ShVars {
+        &self.vars
     }
-}
 
-impl From<ProcessHandler> for State {
-    fn from(handler: ProcessHandler) -> Self {
-        Self {
-            vars: ShVars::new(),
-            handler,
-            pipe: Pipe::new(),
-        }
+    pub fn vars_mut(&mut self) -> &mut ShVars {
+        &mut self.vars
     }
-}
 
-impl From<Pipe> for State {
-    fn from(pipe: Pipe) -> Self {
-        Self {
-            vars: ShVars::new(),
-            handler: ProcessHandler::new(),
-            pipe,
-        }
+    pub fn handler(&self) -> &ProcessHandler {
+        &self.handler
     }
-}
 
-impl From<(ShVars, ProcessHandler)> for State {
-    fn from((vars, handler): (ShVars, ProcessHandler)) -> Self {
-        Self {
-            vars,
-            handler,
-            pipe: Pipe::new(),
-        }
+    pub fn handler_mut(&mut self) -> &mut ProcessHandler {
+        &mut self.handler
     }
-}
 
-impl From<(ShVars, Pipe)> for State {
-    fn from((vars, pipe): (ShVars, Pipe)) -> Self {
-        Self {
-            vars,
-            handler: ProcessHandler::new(),
-            pipe,
-        }
+    pub fn stdin(&self) -> &Pipe {
+        &self.stdin
     }
-}
 
-impl From<(ProcessHandler, Pipe)> for State {
-    fn from((handler, pipe): (ProcessHandler, Pipe)) -> Self {
-        Self {
-            vars: ShVars::new(),
-            handler,
-            pipe,
-        }
+    pub fn stdin_mut(&mut self) -> &mut Pipe {
+        &mut self.stdin
     }
-}
 
-impl From<(ShVars, ProcessHandler, Pipe)> for State {
-    fn from((vars, handler, pipe): (ShVars, ProcessHandler, Pipe)) -> Self {
-        Self {
-            vars,
-            handler,
-            pipe,
-        }
+    pub fn stdout(&self) -> &Pipe {
+        &self.stdout
     }
+
+    pub fn stdout_mut(&mut self) -> &mut Pipe {
+        &mut self.stdout
+    }
+
+    pub fn stderr(&self) -> &Pipe {
+        &self.stderr
+    }
+
+    pub fn stderr_mut(&mut self) -> &mut Pipe {
+        &mut self.stderr
+    }
+
 }

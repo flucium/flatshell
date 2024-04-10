@@ -10,6 +10,9 @@ pub enum ErrorKind {
     Failure,
     LexerError,
     SyntaxError,
+    EngineError,
+    BrokenPipe,
+    InvalidInput
 }
 
 impl ErrorKind {
@@ -24,6 +27,9 @@ impl ErrorKind {
             ErrorKind::Failure => "Failure",
             ErrorKind::LexerError => "LexerError",
             ErrorKind::SyntaxError => "SyntaxError",
+            ErrorKind::EngineError => "EngineError",
+            ErrorKind::BrokenPipe => "BrokenPipe",
+            ErrorKind::InvalidInput => "InvalidInput",
         }
     }
 }

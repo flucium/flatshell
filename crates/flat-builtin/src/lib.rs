@@ -1,20 +1,32 @@
 mod common;
 
-mod calc;
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "unix"))]
+mod unix;
 
-#[cfg(target_os = "linux")]
-mod linux;
+pub fn is_builtin(command: &str) -> bool {
+    match command {
+        "abort" | "cd" | "exit" => true,
+        _ => false,
+    }
+}
 
-#[cfg(target_os = "macos")]
-mod darwin;
+pub fn execute(command: &str, args: Vec<&str>) {
+    match command {
+        "abort" => {
+            common::abort();
+        }
 
-#[cfg(target_os = "linux")]
-pub use linux::*;
+        "cd" => {
+            #[cfg(any(target_os = "linux", target_os = "macos", target_os = "unix"))]
+            unix::cd(args.get(0).unwrap_or(&"./"));
+        }
 
+        "exit" => {
+            let arg = args.get(0).unwrap_or(&"0").parse::<i32>().unwrap_or(2);
 
-#[cfg(target_os = "macos")]
-pub use darwin::*;
+            common::exit(arg);
+        }
 
-pub use common::*;
-
-pub use calc::*;
+        _ => {}
+    }
+}

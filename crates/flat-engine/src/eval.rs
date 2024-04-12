@@ -3,8 +3,6 @@ use flat_common::{
     result::Result,
 };
 
-use flat_builtin::{execute as builtin_execute, is_builtin};
-
 use std::{
     fs,
     os::{
@@ -59,17 +57,35 @@ fn eval_command(command: flat_ast::Command, state: &mut State, is_last: bool) ->
 
     let redirects = command.redirects;
 
-    if is_builtin(&name) {
-        eval_builtin_command(name, args, state)?;
-    } else {
-        eval_process_command(name, args, redirects, false, state, is_last)?;
-    }
+    eval_builtin_command(&name, &args, state).or_else(|_| {
+        eval_process_command(name, args, redirects, command.background, state, is_last)
+    })?;
 
     Ok(())
 }
 
-fn eval_builtin_command(name: String, args: Vec<String>, state: &mut State) -> Result<()> {
-    builtin_execute(&name, args.iter().map(|arg| arg.as_str()).collect());
+fn eval_builtin_command(name: &String, args: &Vec<String>, state: &mut State) -> Result<()> {
+    match name.as_str() {
+        "exit" => {
+            let code = args
+                .get(0)
+                .unwrap_or(&"0".to_string())
+                .parse::<i32>()
+                .unwrap_or(2);
+            flat_builtin::common::exit(code);
+        }
+        "abort" => {
+            flat_builtin::common::abort();
+        }
+        "printenv" => {
+            let s = &"".to_string();
+
+            let key = args.get(0).unwrap_or(s);
+
+            flat_builtin::common::printenv(key, state.vars().entries());
+        }
+        _ => Err(Error::DUMMY)?,
+    }
 
     Ok(())
 }

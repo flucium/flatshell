@@ -4,9 +4,7 @@ use super::{Pipe, ProcessHandler, ShVars};
 pub struct State {
     vars: ShVars,
     handler: ProcessHandler,
-    stdin: Pipe,
-    stdout: Pipe,
-    stderr: Pipe,
+    pipe:Pipe
 }
 
 impl State {
@@ -15,10 +13,7 @@ impl State {
         Self {
             vars: ShVars::new(),
             handler: ProcessHandler::new(),
-            stdin: Pipe::new(),
-            stdout: Pipe::new(),
-            stderr: Pipe::new(),
-            
+            pipe: Pipe::new()
         }
     }
 
@@ -38,28 +33,12 @@ impl State {
         &mut self.handler
     }
 
-    pub fn stdin(&self) -> &Pipe {
-        &self.stdin
+    pub fn pipe(&self) -> &Pipe {
+        &self.pipe
     }
 
-    pub fn stdin_mut(&mut self) -> &mut Pipe {
-        &mut self.stdin
-    }
-
-    pub fn stdout(&self) -> &Pipe {
-        &self.stdout
-    }
-
-    pub fn stdout_mut(&mut self) -> &mut Pipe {
-        &mut self.stdout
-    }
-
-    pub fn stderr(&self) -> &Pipe {
-        &self.stderr
-    }
-
-    pub fn stderr_mut(&mut self) -> &mut Pipe {
-        &mut self.stderr
+    pub fn pipe_mut(&mut self) -> &mut Pipe {
+        &mut self.pipe
     }
 
 }

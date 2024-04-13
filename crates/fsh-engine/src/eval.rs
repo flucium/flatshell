@@ -63,6 +63,13 @@ fn eval_command(command: fsh_ast::Command, state: &mut State, is_last: bool) -> 
 
 fn eval_builtin_command(name: &String, args: &Vec<String>, state: &mut State) -> Result<()> {
     match name.as_str() {
+        "cd" => {
+            let d = String::default();
+
+            let path = args.get(0).unwrap_or(&d);
+            
+            fsh_builtin::unix::cd(path)?;
+        }
         "exit" => {
             let code = args
                 .get(0)

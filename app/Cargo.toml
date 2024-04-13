@@ -11,3 +11,4 @@ edition = "2021"
 fsh-common = {path = "../crates/fsh-common", version="0.0.1"}
 fsh-parser = {path = "../crates/fsh-parser", version="0.0.1"}
 fsh-engine = {path = "../crates/fsh-engine", version="0.0.1"}
+fsh-terminal = {path = "../crates/fsh-terminal", version="0.0.1"}

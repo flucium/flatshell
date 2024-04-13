@@ -1,0 +1,12 @@
+[package]
+name = "fsh-parser"
+version = "0.0.1"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+# Internal
+fsh-common = {path = "../fsh-common", version="0.0.1"}
+fsh-ast = {path = "../fsh-ast", version="0.0.1"}

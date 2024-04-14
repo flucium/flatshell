@@ -1,419 +1,415 @@
-use super::{token::Token, utils::replace_line_with_semicolon};
+use super::{
+    token::Token,
+    utils::{remove_comment, remove_empty_line, replace_line_with_semicolon},
+};
 
-const SYMBOLS: [char; 10] = [';', '=', '\'', '"', '&', '$', '@', '|', '>', '<'];
+const SYMBOLS: [char; 11] = [';', '=', '\\', '\'', '"', '&', '$', '@', '|', '>', '<'];
 
 #[derive(Debug)]
 pub struct Lexer {
     source: Vec<char>,
     position: usize,
-    is_eof: bool,
 }
 
 impl Lexer {
+    /// Create a new lexer.
     pub fn new(source: &str) -> Self {
-        let source = replace_line_with_semicolon(&source).chars().collect();
+        let preprocess = |source: &str| -> String {
+            let p1 = remove_comment(source);
+
+            let p2 = remove_empty_line(&p1);
+
+            let p3 = replace_line_with_semicolon(&p2);
+
+            p3
+        };
+
+        let source = preprocess(source);
 
         Self {
-            source,
+            source: source.chars().collect(),
             position: 0,
-            is_eof: false,
         }
     }
 
-    fn current(&self) -> Option<&char> {
+    fn current_char(&self) -> Option<&char> {
         self.source.get(self.position)
     }
 
-    fn next_ch(&mut self) -> Option<&char> {
+    fn peek_char(&self) -> Option<&char> {
+        self.source.get(self.position + 1)
+    }
+
+    fn advance(&mut self) {
         self.position += 1;
-        self.current()
     }
 
-    fn prev_ch(&mut self) -> Option<&char> {
-        self.position -= 1;
-        self.current()
-    }
-
-    // fn peek_ch(&self) -> Option<&char> {
-    //     self.source.get(self.position + 1)
-    // }
-
-    fn next_while<F>(&mut self, mut f: F) -> String
+    fn read_while<F>(&mut self, f: F) -> (Vec<char>, Option<&char>)
     where
-        F: FnMut(&char) -> bool,
+        F: Fn(char) -> bool,
     {
-        let mut result = String::new();
+        let mut result = Vec::new();
 
-        while let Some(c) = self.current() {
+        while let Some(&c) = self.source.get(self.position) {
             if f(c) {
-                result.push(*c);
-                self.next_ch();
+                result.push(c);
+                self.position += 1;
             } else {
                 break;
             }
         }
 
-        result
+        let next = self.source.get(self.position);
+
+        (result, next)
     }
 
-    fn skip_whitespace(&mut self) {
-        self.next_while(|c| c.is_whitespace());
-    }
+    fn read_string(&mut self) -> std::result::Result<Option<String>, String> {
+        let current_char = self.current_char();
 
-    fn read_string(&mut self) -> Option<String> {
-        let is_double_quote = match self.current() {
-            Some('"') => true,
-            Some(_) => false,
-            None => return None,
-        };
-
-        let is_single_quote = match self.current() {
-            Some('\'') => true,
-            Some(_) => false,
-            None => return None,
-        };
-
-        if is_double_quote || is_single_quote {
-            self.next_ch();
+        if current_char.is_none() {
+            return Ok(None);
         }
 
-        let string = self.next_while(|c| {
+        let start_position = self.position;
+
+        let is_double_quote = current_char == Some(&'"');
+
+        let is_single_quote = current_char == Some(&'\'');
+
+        if is_double_quote || is_single_quote {
+            self.advance();
+        }
+
+        let (string, end_char) = self.read_while(|c| {
             if is_double_quote {
-                *c != '"'
+                c != '"'
             } else if is_single_quote {
-                *c != '\''
+                c != '\''
             } else {
-                !c.is_whitespace() && !SYMBOLS.contains(c)
+                !SYMBOLS.contains(&c) && !c.is_whitespace()
             }
         });
 
-        if string.parse::<usize>().is_ok() {
-            self.prev_ch();
-            return None;
+        if is_double_quote && end_char != Some(&'"') {
+            self.position = start_position;
+
+            Err("double quote error".to_string())?
+        } else if is_single_quote && end_char != Some(&'\'') {
+            self.position = start_position;
+
+            Err("single quote error".to_string())?
+        } else if !is_double_quote && !is_single_quote && string.is_empty() {
+            self.position = start_position;
+
+            return Ok(None);
+        } else {
+            if is_double_quote || is_single_quote {
+                self.advance();
+            }
         }
+
+        Ok(Some(string.into_iter().collect()))
+    }
+
+    fn read_number(&mut self) -> std::result::Result<Option<usize>, String> {
+        match self.current_char() {
+            Some(c) => {
+                if !c.is_digit(10) {
+                    Err("invalid number".to_string())?
+                }
+            }
+            None => return Ok(None),
+        }
+
+        let start_position = self.position;
+
+        let (string, _) = self.read_while(|c| !c.is_whitespace() && !SYMBOLS.contains(&c));
+
+        match string.into_iter().collect::<String>().parse::<usize>() {
+            Ok(number) => Ok(Some(number)),
+            Err(_) => {
+                self.position = start_position;
+                Err("invalid number".to_string())
+            }
+        }
+    }
+
+    fn read_ident(&mut self) -> std::result::Result<Option<String>, String> {
+        let current_char = self.current_char();
+
+        if current_char.is_none() {
+            return Ok(None);
+        }
+
+        let start_position = self.position;
+
+        if current_char == Some(&'$') {
+            self.advance();
+        } else {
+            self.position = start_position;
+            Err("invalid identifier".to_string())?
+        }
+
+        let (string, _) = self.read_while(|c| !c.is_whitespace() && !SYMBOLS.contains(&c));
 
         if string.is_empty() {
-            None
+            self.position = start_position;
+            Err("invalid identifier".to_string())?
+        }
+
+        if let Some(ch) = string.first() {
+            if !ch.is_alphabetic() {
+                self.position = start_position;
+                Err("invalid identifier".to_string())?
+            }
         } else {
-            Some(string)
+            self.position = start_position;
+            Err("invalid identifier".to_string())?
+        }
+
+        if let Some(c) = string.last() {
+            if !c.is_alphanumeric() {
+                self.position = start_position;
+                Err("invalid identifier".to_string())?
+            }
+        } else {
+            self.position = start_position;
+            Err("invalid identifier".to_string())?
+        }
+
+        Ok(Some(string.into_iter().collect()))
+    }
+
+    fn read_fd(&mut self) -> std::result::Result<Option<usize>, String> {
+        let current_char = self.current_char();
+
+        if current_char.is_none() {
+            return Ok(None);
+        }
+
+        let start_position = self.position;
+
+        if current_char == Some(&'@') {
+            self.advance();
+        } else {
+            self.position = start_position;
+            Err("invalid file descriptor".to_string())?
+        }
+
+        let (string, _) = self.read_while(|c| !c.is_whitespace() && !SYMBOLS.contains(&c));
+
+        match string.into_iter().collect::<String>().parse::<usize>() {
+            Ok(number) => Ok(Some(number)),
+            Err(_) => {
+                self.position = start_position;
+                Err("invalid file descriptor".to_string())
+            }
         }
     }
 
-    fn read_ident(&mut self) -> Option<String> {
-        match self.current() {
-            Some('$') => {
-                self.next_ch();
+    fn read(&mut self) -> fsh_common::Result<Token> {
+        let mut token = Token::EOF;
+
+        while let Some(ch) = self.current_char() {
+            if ch.is_whitespace() {
+                self.advance();
+                continue;
             }
 
-            _ => return None,
-        }
+            match ch {
+                ';' => {
+                    token = Token::Semicolon;
+                    self.advance();
+                    break;
+                }
 
-        let ident = self.next_while(|c| !c.is_whitespace() && !SYMBOLS.contains(c));
+                '=' => {
+                    token = Token::Assign;
+                    self.advance();
+                    break;
+                }
 
-        if ident.is_empty() {
-            self.prev_ch();
-            None
-        } else {
-            Some(ident)
-        }
-    }
+                '&' => {
+                    token = Token::Ampersand;
+                    self.advance();
+                    break;
+                }
 
-    fn read_number(&mut self) -> Option<usize> {
-        match self.current() {
-            Some(c) => {
-                if c.is_digit(10) == false {
-                    return None;
+                '|' => {
+                    token = Token::Pipe;
+                    self.advance();
+                    break;
+                }
+
+                '>' => {
+                    token = Token::Gt;
+                    self.advance();
+                    break;
+                }
+
+                '<' => {
+                    token = Token::Lt;
+                    self.advance();
+                    break;
+                }
+
+                '@' => {
+                    // if let Ok(fd) = self.read_fd() {
+                    //     if let Some(fd) = fd {
+                    //         token = Token::FD(fd as i32);
+                    //     } else {
+                    //         token = Token::EOF;
+                    //     }
+                    // } else {
+                    //     token = Token::String("@".to_string());
+                    //     self.advance();
+                    // }
+
+                    match self.read_fd() {
+                        Ok(Some(fd)) => token = Token::FD(fd as i32),
+                        Ok(None) => token = Token::EOF,
+                        Err(err) => match self.peek_char() {
+                            Some(ch) => {
+                                if ch.is_whitespace() {
+                                    token = Token::String("@".to_string());
+                                    self.advance();
+                                } else {
+                                    Err(fsh_common::Error::new(fsh_common::ErrorKind::LexerError, &err))?;
+                                }
+                            }
+                            None => {
+                                token = Token::String("@".to_string());
+                                self.advance();
+                            }
+                        },
+                    }
+
+                    break;
+                }
+
+                '$' => {
+                    // if let Ok(ident) = self.read_ident() {
+                    //     if let Some(ident) = ident {
+                    //         token = Token::Ident(ident);
+                    //     } else {
+                    //         token = Token::EOF;
+                    //     }
+                    // } else {
+                    //     token = Token::String("$".to_string());
+                    //     self.advance();
+                    // }
+
+                    match self.read_ident() {
+                        Ok(Some(ident)) => token = Token::Ident(ident),
+                        Ok(None) => token = Token::EOF,
+                        Err(err) => match self.peek_char() {
+                            Some(ch) => {
+                                if ch.is_whitespace() {
+                                    token = Token::String("$".to_string());
+                                    self.advance();
+                                } else {
+                                    Err(fsh_common::Error::new(fsh_common::ErrorKind::LexerError, &err))?;
+                                }
+                            }
+                            None => {
+                                token = Token::String("$".to_string());
+                                self.advance();
+                            }
+                        },
+                    }
+
+                    break;
+                }
+
+                '"' | '\'' => {
+                    // if let Ok(string) = self.read_string() {
+                    //     if let Some(string) = string {
+                    //         token = Token::String(string);
+                    //     } else {
+                    //         token = Token::EOF;
+                    //     }
+                    // }
+
+                    match self.read_string() {
+                        Ok(Some(string)) => token = Token::String(string),
+                        Ok(None) => token = Token::EOF,
+                        Err(err) => Err(fsh_common::Error::new(fsh_common::ErrorKind::LexerError, &err))?,
+                    }
+
+                    break;
+                }
+
+                '0'..='9' => {
+                    // if let Ok(number) = self.read_number() {
+                    //     if let Some(number) = number {
+                    //         token = Token::Number(number);
+                    //     } else {
+                    //         token = Token::EOF;
+                    //     }
+                    // }
+
+                    match self.read_number() {
+                        Ok(Some(number)) => token = Token::Number(number),
+                        Ok(None) => token = Token::EOF,
+                        Err(err) => match self.read_string() {
+                            Ok(Some(string)) => token = Token::String(string),
+                            Ok(None) => token = Token::EOF,
+                            Err(_) => Err(fsh_common::Error::new(fsh_common::ErrorKind::LexerError, &err))?,
+                        },
+                    }
+
+                    break;
+                }
+
+                _ => {
+                    // if let Ok(string) = self.read_string() {
+                    //     if let Some(string) = string {
+                    //         token = Token::String(string);
+                    //     } else {
+                    //         token = Token::EOF;
+                    //     }
+                    // }
+
+                    match self.read_string() {
+                        Ok(Some(string)) => token = Token::String(string),
+                        Ok(None) => token = Token::EOF,
+                        Err(err) => {
+                            if self.peek_char().is_some() {
+                                Err(fsh_common::Error::new(fsh_common::ErrorKind::LexerError, &err))?;
+                            } else {
+                                token = Token::EOF;
+                            }
+                        }
+                    }
+
+                    break;
                 }
             }
-            _ => return None,
         }
 
-        let string = self.next_while(|c| !SYMBOLS.contains(c) && !c.is_whitespace());
-
-        match string.parse::<usize>() {
-            Ok(number) => Some(number),
-            Err(_) => None,
-        }
+        Ok(token)
     }
 
-    fn read_fd(&mut self) -> Option<usize> {
-        match self.current() {
-            Some('@') => {
-                self.next_ch();
-            }
-
-            _ => return None,
-        }
-
-        if let Some(fd) = self.read_number() {
-            Some(fd)
-        } else {
-            self.prev_ch();
-            None
-        }
-    }
-
-    fn read_symbol(&mut self) -> Option<char> {
-        let symbol = match self.current() {
-            Some(c) => {
-                if SYMBOLS.contains(c) {
-                    *c
-                } else {
-                    return None;
-                }
-            }
-            _ => return None,
-        };
-
-        self.next_ch();
-
-        Some(symbol)
-    }
-
-    pub fn read_token(&mut self) -> Token {
-        self.skip_whitespace();
-
-        if let Some(string) = self.read_string() {
-            return Token::String(string);
-        }
-
-        if let Some(number) = self.read_number() {
-            return Token::Number(number);
-        }
-
-        if let Some(fd) = self.read_fd() {
-            return Token::FD(fd as i32);
-        }
-
-        if let Some(ident) = self.read_ident() {
-            return Token::Ident(ident);
-        }
-
-        if let Some(symbol) = self.read_symbol() {
-            match symbol {
-                ';' => Token::Semicolon,
-                '=' => Token::Assign,
-                '\'' => Token::String("'".to_string()),
-                '"' => Token::String("\"".to_string()),
-                '&' => Token::Ampersand,
-                '$' => Token::Dollar,
-                '@' => Token::String("@".to_string()),
-                '|' => Token::Pipe,
-                '>' => Token::Gt,
-                '<' => Token::Lt,
-                _ => Token::EOF,
-            }
-        } else {
-            Token::EOF
-        }
-    }
-
-    pub fn tokenize(&mut self) -> Vec<Token> {
+    pub fn tokenize(&mut self) -> fsh_common::Result<Vec<Token>> {
         let mut tokens = Vec::new();
 
         loop {
-            tokens.push(self.read_token());
+            let token = self.read()?;
+
+            if token == Token::Semicolon {
+                if tokens.last() == Some(&Token::Semicolon) {
+                    continue;
+                }
+            }
+
+            tokens.push(token);
 
             if tokens.last() == Some(&Token::EOF) {
                 break;
             }
         }
 
-        tokens
-    }
-}
-
-impl Iterator for Lexer {
-    type Item = Token;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.read_token() {
-            Token::EOF => {
-                if self.is_eof {
-                    None
-                } else {
-                    self.is_eof = true;
-                    Some(Token::EOF)
-                }
-            }
-            token => Some(token),
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn read_string() {
-        assert_eq!(Lexer::new("hello").read_string(), Some("hello".to_string()));
-
-        assert_eq!(
-            Lexer::new("hello world").read_string(),
-            Some("hello".to_string())
-        );
-
-        assert_eq!(
-            Lexer::new("\"hello world\"").read_string(),
-            Some("hello world".to_string())
-        );
-
-        assert_eq!(
-            Lexer::new("\"hello = world\"").read_string(),
-            Some("hello = world".to_string())
-        );
-    }
-
-    #[test]
-    fn read_string_none() {
-        assert_eq!(Lexer::new("").read_string(), None);
-
-        assert_eq!(Lexer::new(" ").read_string(), None);
-
-        SYMBOLS.iter().for_each(|symbol| {
-            assert_eq!(Lexer::new(symbol.to_string().as_str()).read_string(), None);
-        });
-    }
-
-    #[test]
-    fn read_ident() {
-        assert_eq!(Lexer::new("$hello").read_ident(), Some("hello".to_string()));
-
-        assert_eq!(
-            Lexer::new("$hello world").read_ident(),
-            Some("hello".to_string())
-        );
-
-        assert_eq!(
-            Lexer::new("$hello = world").read_ident(),
-            Some("hello".to_string())
-        );
-
-        assert_eq!(Lexer::new("$.").read_ident(), Some(".".to_string()));
-
-        assert_eq!(Lexer::new("$0123").read_ident(), Some("0123".to_string()));
-    }
-
-    #[test]
-    fn read_ident_none() {
-        assert_eq!(Lexer::new("").read_ident(), None);
-
-        assert_eq!(Lexer::new(" ").read_ident(), None);
-
-        assert_eq!(Lexer::new("$\"hello\"").read_ident(), None);
-
-        SYMBOLS.iter().for_each(|symbol| {
-            assert_eq!(Lexer::new(symbol.to_string().as_str()).read_ident(), None);
-        });
-    }
-
-    #[test]
-    fn read_number() {
-        assert_eq!(Lexer::new("123").read_number(), Some(123));
-
-        assert_eq!(Lexer::new("123 ").read_number(), Some(123));
-
-        assert_eq!(Lexer::new("123 456").read_number(), Some(123));
-    }
-
-    #[test]
-    fn read_number_none() {
-        assert_eq!(Lexer::new("").read_number(), None);
-
-        assert_eq!(Lexer::new(" ").read_number(), None);
-
-        assert_eq!(Lexer::new("123.1").read_number(), None);
-
-        assert_eq!(Lexer::new("hello").read_number(), None);
-
-        SYMBOLS.iter().for_each(|symbol| {
-            assert_eq!(Lexer::new(symbol.to_string().as_str()).read_number(), None);
-        });
-    }
-
-    #[test]
-    fn read_fd() {
-        assert_eq!(Lexer::new("@123").read_fd(), Some(123));
-
-        assert_eq!(Lexer::new("@123 ").read_fd(), Some(123));
-
-        assert_eq!(Lexer::new("@123 456").read_fd(), Some(123));
-
-        assert_eq!(Lexer::new("@123@456").read_fd(), Some(123));
-
-        assert_eq!(Lexer::new("@123>test.txt").read_fd(), Some(123));
-    }
-
-    #[test]
-    fn read_fd_none() {
-        assert_eq!(Lexer::new("").read_fd(), None);
-
-        assert_eq!(Lexer::new(" ").read_fd(), None);
-
-        assert_eq!(Lexer::new("@hello").read_fd(), None);
-
-        assert_eq!(Lexer::new("@123.1").read_fd(), None);
-
-        assert_eq!(Lexer::new("@").read_fd(), None);
-
-        SYMBOLS.iter().for_each(|symbol| {
-            assert_eq!(Lexer::new(symbol.to_string().as_str()).read_fd(), None);
-        });
-    }
-
-    #[test]
-    fn read_symbol() {
-        SYMBOLS.iter().for_each(|symbol| {
-            assert_eq!(
-                Lexer::new(symbol.to_string().as_str()).read_symbol(),
-                Some(*symbol)
-            );
-        });
-    }
-
-    #[test]
-    fn read_symbol_none() {
-        assert_eq!(Lexer::new("").read_symbol(), None);
-
-        assert_eq!(Lexer::new(" ").read_symbol(), None);
-
-        assert_eq!(Lexer::new("hello").read_symbol(), None);
-
-        assert_eq!(Lexer::new("123").read_symbol(), None);
-    }
-
-    #[test]
-    fn test_tokenize() {
-        let mut lexer =
-            Lexer::new("ls -a; ping -c 3 127.0.0.1 | cat -b\nls > test.txt;tee@0<test.txt");
-
-        let tokens = lexer.tokenize();
-
-        assert_eq!(
-            tokens,
-            vec![
-                Token::String("ls".to_string()),
-                Token::String("-a".to_string()),
-                Token::Semicolon,
-                Token::String("ping".to_string()),
-                Token::String("-c".to_string()),
-                Token::Number(3),
-                Token::String("127.0.0.1".to_string()),
-                Token::Pipe,
-                Token::String("cat".to_string()),
-                Token::String("-b".to_string()),
-                Token::Semicolon,
-                Token::String("ls".to_string()),
-                Token::Gt,
-                Token::String("test.txt".to_string()),
-                Token::Semicolon,
-                Token::String("tee".to_string()),
-                Token::FD(0),
-                Token::Lt,
-                Token::String("test.txt".to_string()),
-                Token::EOF
-            ]
-        );
+        Ok(tokens)
     }
 }

@@ -1,12 +1,52 @@
 use super::token::Token;
 
-/// Replace the newline character with a semicolon.
-pub(super) fn replace_line_with_semicolon(input: &str) -> String {
+
+/// Remove comments from the input.
+/// 
+/// The comment is a line starting with a (#) character. end with a semicolon (;) or newline character.
+pub(super) fn remove_comment(input: &str) -> String {
     let mut result = String::with_capacity(input.len() + 1024);
 
-    result.push_str(input);
+    let mut is_comment = false;
 
-    result.replace('\n', ";")
+    for c in input.chars() {
+        if c == '#' {
+            is_comment = true;
+        }
+
+        if is_comment == false {
+            result.push(c);
+        }
+
+        if c == '\n' || c == '\r' || c == ';' {
+            is_comment = false;
+        }
+    }
+
+    result
+}
+
+/// Remove empty lines from the input.
+/// 
+/// The empty line is a line that contains only whitespace characters.
+pub(super) fn remove_empty_line(input: &str) -> String {
+    let mut result = String::with_capacity(input.len() + 1024);
+
+    for line in input.lines() {
+        if line.trim().is_empty() {
+            continue;
+        }
+
+        result.push_str(line);
+        result.push('\n');
+    }
+
+    result
+}
+
+/// Replace the newline character with a semicolon.
+pub(super) fn replace_line_with_semicolon(input: &str) -> String {
+    input.replace("\n", ";")
 }
 
 /// Split the tokens into multiple parts, the split position is the place token.
@@ -133,5 +173,23 @@ mod tests {
         assert_eq!(result[0], vec![Token::String("A".to_string())]);
         assert_eq!(result[1], vec![Token::String("B".to_string())]);
         assert_eq!(result[2], vec![Token::String("C".to_string())]);
+    }
+
+    #[test]
+    fn test_remove_comment() {
+        let input = "hello world;\n# this is a comment\nhello world;";
+
+        let expected = "hello world;\nhello world;";
+
+        assert_eq!(remove_comment(input), expected);
+    }
+
+    #[test]
+    fn test_remove_empty_line() {
+        let input = "hello world;\n\nhello world;\n";
+
+        let expected_1 = "hello world;\nhello world;\n";
+
+        assert_eq!(remove_empty_line(input), expected_1);
     }
 }

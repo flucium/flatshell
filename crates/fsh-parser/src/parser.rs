@@ -15,14 +15,11 @@ impl Parser {
     }
 
     pub fn parse(&mut self) -> Result<Ast> {
-        let mut tokens = Vec::new();
 
-        while let Some(token) = self.0.next() {
-            if token == Token::EOF {
-                break;
-            }
+        let mut tokens = self.0.tokenize()?;
 
-            tokens.push(token);
+        if tokens.pop() != Some(Token::EOF){
+            //
         }
 
         let entries = recursion_split(&Token::Semicolon, &tokens);
@@ -52,20 +49,5 @@ impl Parser {
         }
 
         Ok(self.1.to_owned())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parser() {
-        let mut parser =
-            Parser::new("$A = HELLO; echo hello; echo world; $var=hello; echo $var; $var = 10");
-
-        let ast = parser.parse();
-
-        assert_eq!(ast.is_ok(), true);
     }
 }

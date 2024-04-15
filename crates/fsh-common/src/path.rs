@@ -27,6 +27,13 @@ impl Path {
         Ok(self)
     }
 
+    pub fn push(&mut self, p: &str) {
+        self.0.push(p.trim_start_matches("/"));
+    }
+
+    pub fn pop(&mut self) -> bool{
+        self.0.pop()
+    }
 
     pub fn as_path(&self) -> &std::path::Path {
         self.0.as_path()

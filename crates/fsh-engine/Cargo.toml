@@ -11,4 +11,3 @@ libc = "0.2.153"
 # Internal
 fsh-ast = {path = "../fsh-ast", version="0.0.1"}
 fsh-common = {path = "../fsh-common", version="0.0.1"}
-fsh-builtin = {path = "../fsh-builtin", version="0.0.1"}

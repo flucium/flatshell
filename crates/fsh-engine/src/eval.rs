@@ -9,37 +9,56 @@ use std::{
             process::CommandExt,
         },
     },
+    path::Path,
     process,
 };
 
-use super::{extract::*, pipe::Pipe, State};
+use super::{extract::*, pipe::Pipe, ShVars, State};
 
-pub fn eval(ast: fsh_ast::Ast, state: &mut State) -> Result<()> {
+pub fn eval(ast: fsh_ast::Ast, state: &mut State, sh_vars: &mut ShVars) -> Result<()> {
     match ast {
+        //
+        //
+        //
         fsh_ast::Ast::Semicolon(mut semicolon) => {
             while let Some(ast) = semicolon.pop_front() {
-                eval(ast, state)?;
+                eval(ast, state, sh_vars)?;
             }
         }
+
+        //
+        //
+        //
         fsh_ast::Ast::Pipe(mut pipe) => {
             *state.pipe_mut() = Pipe::open();
 
             while let Some(command) = pipe.pop_front() {
-                eval_command(command, state, pipe.is_empty())?;
+                eval_command(command, state, sh_vars, pipe.is_empty())?;
             }
 
             state.pipe_mut().close()?;
 
             state.handler_mut().wait();
         }
+
+        //
+        //
+        //
         fsh_ast::Ast::Statement(statement) => match statement {
+            //
+            //
+            //
             fsh_ast::Statement::Command(command) => {
-                eval_command(command, state, true)?;
+                eval_command(command, state, sh_vars, true)?;
 
                 state.handler_mut().wait();
             }
+
+            //
+            //
+            //
             fsh_ast::Statement::Assign(assign) => {
-                eval_assign(assign, state)?;
+                eval_assign(assign, sh_vars)?;
             }
         },
     }
@@ -47,59 +66,82 @@ pub fn eval(ast: fsh_ast::Ast, state: &mut State) -> Result<()> {
     Ok(())
 }
 
-fn eval_command(command: fsh_ast::Command, state: &mut State, is_last: bool) -> Result<()> {
-    let name = extract_command_name(&command, state)?;
+fn eval_command(
+    command: fsh_ast::Command,
+    state: &mut State,
+    sh_vars: &mut ShVars,
+    is_last: bool,
+) -> Result<()> {
+    let name = extract_command_name(&command, sh_vars)?;
 
-    let args = extract_command_args(&command, state)?;
+    let args = extract_command_args(&command, sh_vars)?;
 
     let redirects = command.redirects;
 
     eval_builtin_command(&name, &args, state).or_else(|_| {
-        eval_process_command(name, args, redirects, command.background, state, is_last)
+        eval_process_command(
+            name,
+            args,
+            redirects,
+            command.background,
+            state,
+            sh_vars,
+            is_last,
+        )
     })?;
 
     Ok(())
 }
 
+//
+//
+//
 fn eval_builtin_command(name: &String, args: &Vec<String>, state: &mut State) -> Result<()> {
-    match name.as_str() {
+    match name.as_ref() {
+        //
+        // Unix builtins
+        //
         "cd" => {
-            let d = String::default();
+            let arg = match args.first() {
+                Some(arg) => arg,
+                None => "/",
+            };
 
-            let path = args.get(0).unwrap_or(&d);
-            
-            fsh_builtin::unix::cd(path)?;
+            super::builtin::unix::cd(arg, state)?;
         }
-        "exit" => {
-            let code = args
-                .get(0)
-                .unwrap_or(&"0".to_string())
-                .parse::<i32>()
-                .unwrap_or(2);
-            fsh_builtin::common::exit(code);
-        }
+
+        //
+        // Common builtins
+        //
         "abort" => {
-            fsh_builtin::common::abort();
+            super::builtin::common::abort();
         }
-        "printenv" => {
-            let s = &"".to_string();
 
-            let key = args.get(0).unwrap_or(s);
+        "exit" => {
+            let code = match args.first() {
+                Some(arg) => arg.parse().unwrap_or(0),
+                None => 0,
+            };
 
-            fsh_builtin::common::printenv(key, state.vars().entries())?;
+            super::builtin::common::exit(code);
         }
-        _ => Err(Error::DUMMY)?,
+
+        _ => Err(Error::INTERNAL)?,
     }
 
     Ok(())
 }
 
+//
+//
+//
 fn eval_process_command(
     name: String,
     args: Vec<String>,
     redirects: Vec<fsh_ast::Redirect>,
     is_background: bool,
     state: &mut State,
+    sh_vars: &mut ShVars,
     is_last: bool,
 ) -> Result<()> {
     // create a new process command
@@ -118,10 +160,10 @@ fn eval_process_command(
     }
 
     // set the environment variables
-    ps_command.envs(state.vars().entries());
+    ps_command.envs(sh_vars.entries());
 
     // set the current directory
-    ps_command.current_dir(state.vars().get("PWD").unwrap_or("/"));
+    ps_command.current_dir(state.current_dir().unwrap_or(Path::new("/")));
 
     // set the pre-execution closure
     unsafe {
@@ -214,10 +256,10 @@ fn set_command_stdio(state: &mut State) -> (process::Stdio, process::Stdio, proc
     (stdin, stdout, stderr)
 }
 
-fn eval_assign(assign: fsh_ast::Assign, state: &mut State) -> Result<()> {
+fn eval_assign(assign: fsh_ast::Assign, sh_vars: &mut ShVars) -> Result<()> {
     let (key, value) = extract_assign(assign)?;
 
-    state.vars_mut().insert(key, value);
+    sh_vars.insert(key, value);
 
     Ok(())
 }

@@ -1,10 +1,10 @@
 use fsh_common::{Error,ErrorKind,Result};
 
-use super::State;
+use super::ShVars;
 
 pub(super) fn extract_command_args(
     command: &fsh_ast::Command,
-    state: &mut State,
+    sh_vars: &mut ShVars
 ) -> Result<Vec<String>> {
     let mut v = Vec::with_capacity(command.args.len());
 
@@ -13,7 +13,7 @@ pub(super) fn extract_command_args(
             fsh_ast::Expr::String(string) => string,
 
             fsh_ast::Expr::Ident(ident) => {
-                state.vars().get(&ident).unwrap_or_default().to_string()
+                sh_vars.get(&ident).unwrap_or_default().to_string()
             }
 
             fsh_ast::Expr::Number(number) => number.to_string(),
@@ -31,12 +31,12 @@ pub(super) fn extract_command_args(
 
 pub(super) fn extract_command_name(
     command: &fsh_ast::Command,
-    state: &mut State,
+    sh_vars: &mut ShVars
 ) -> Result<String> {
     let name = match command.expr.to_owned() {
         fsh_ast::Expr::String(string) => string,
 
-        fsh_ast::Expr::Ident(ident) => state.vars().get(&ident).unwrap_or_default().to_string(),
+        fsh_ast::Expr::Ident(ident) => sh_vars.get(&ident).unwrap_or_default().to_string(),
 
         fsh_ast::Expr::Number(number) => number.to_string(),
 

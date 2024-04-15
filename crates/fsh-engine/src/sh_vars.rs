@@ -1,6 +1,11 @@
 use fsh_common::{Error, ErrorKind, Result};
 use std::{collections::HashMap, fs, io::Write, path::Path};
 
+
+pub const RESERVEDWORD_SHELL_VARIABLE_FSH_PROMPT: &str = "FSH_PROMPT";
+
+pub const RESERVEDWORD_SHELL_VARIABLE_FSH_CWD: &str = "FSH_CWD";
+
 /// Shell variables.
 #[derive(Debug, Clone)]
 pub struct ShVars(HashMap<String, String>);
@@ -133,6 +138,14 @@ impl ShVars {
                 &format!("The key '{}' does not exist", key),
             )
         })
+    }
+
+    pub fn get_prompt(&self) -> Result<&str> {
+        self.get(RESERVEDWORD_SHELL_VARIABLE_FSH_PROMPT)
+    }
+
+    pub fn get_cwd(&self) -> Result<&str> {
+        self.get(RESERVEDWORD_SHELL_VARIABLE_FSH_CWD)
     }
 
     /// Set a shell variable.

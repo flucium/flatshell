@@ -9,7 +9,6 @@ use std::{
             process::CommandExt,
         },
     },
-    path::Path,
     process,
 };
 
@@ -146,7 +145,7 @@ fn eval_process_command(
 ) -> Result<()> {
     // create a new process command
     let mut ps_command = process::Command::new(&name);
-
+    
     // set the arguments
     ps_command.args(args);
 
@@ -163,7 +162,7 @@ fn eval_process_command(
     ps_command.envs(sh_vars.entries());
 
     // set the current directory
-    ps_command.current_dir(state.current_dir().unwrap_or(Path::new("/")));
+    ps_command.current_dir(state.current_dir());
 
     // set the pre-execution closure
     unsafe {

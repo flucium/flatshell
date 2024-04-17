@@ -1,7 +1,5 @@
 use std::path::{Path, PathBuf};
 
-use fsh_common::{Error, Result};
-
 use super::{pipe::*, process_handler::*};
 
 #[derive(Debug)]
@@ -16,7 +14,7 @@ impl State {
         Self {
             handler: ProcessHandler::new(),
             pipe: Pipe::new(),
-            current_dir: PathBuf::new(),
+            current_dir:PathBuf::new(),
         }
     }
 
@@ -36,42 +34,12 @@ impl State {
         &mut self.pipe
     }
 
-    pub fn current_dir(&self) -> Result<&Path> {
-        if self.current_dir.exists() == false {
-            Err(Error::new(
-                fsh_common::ErrorKind::NotFound,
-                "no such file or directory",
-            ))?
-        }
-
-        if self.current_dir.is_dir() == false {
-            Err(Error::new(
-                fsh_common::ErrorKind::NotADirectory,
-                "not a directory",
-            ))?
-        }
-
-        Ok(&self.current_dir)
+    pub fn current_dir(&self) -> &Path {
+        &self.current_dir
     }
 
-    pub fn set_current_dir(&mut self, path: &Path)->Result<()> {
-        
-        if path.exists() == false{
-            Err(Error::new(
-                fsh_common::ErrorKind::NotFound,
-                "no such file or directory",
-            ))?
-        }
-
-        if path.is_dir() == false{
-            Err(Error::new(
-                fsh_common::ErrorKind::NotADirectory,
-                "not a directory",
-            ))?
-        }
-
-        self.current_dir = path.to_path_buf();
-        
-        Ok(())
+    pub fn current_dir_mut(&mut self) -> &mut PathBuf {
+        &mut self.current_dir
     }
+
 }

@@ -1,0 +1,160 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[letterpaper, top=2cm, bottom=2cm, left=3cm, right=3cm, marginparwidth=1.75cm]{geometry}
+\usepackage{titlesec}
+\usepackage{color}
+\title{FlatShellの開発}
+\author{FURUKAWA \textless flucium@flucium.net\textgreater }
+\date{April 23, 2024}
+\begin{document}
+\maketitle
+
+\section*{はじめに}
+Shellとは，オペレーティングシステム(OS)とユーザー間のインフェーフェイスとして機能するプログラムのことである．\newline
+よく知られているものとして，Unix shellであるBashやZsh，MicrosoftのPowerShellなどがある．\newline
+FlatShellとは，独自のShellであり，Unix shellなどには該当しない．また，Unix shellを比較対象としている．
+
+\section{FlatShellの思想}
+“フラットな状態は良い”という思想のもとで開発している．\newline
+構文はもちろんのこと，処理系などの実装においても，可能な限りネストを深くしないように心掛けている．また，Unix shellの構文と比較して，自由な形式で書けることを意識している．
+
+\section{字句解析器}
+FlatShellでは，入力に対してプリプロセッシングという事前処理を多段階で行い，その結果に対してスキャナとトークナイザを走らせ，トークンを得るようにしている．\newline
+以降，順を追って説明する．
+
+\subsection{プリプロセッシング}
+\begin{enumerate}
+    \item 入力を受ける．
+    \item 先頭から順にリードし，Sharp(\#)がリードされた時点で，LF，CR（\textbackslash n , \textbackslash r），Semicolon(;)まで読み飛ばす．
+    \item 各行をみていく．空の行を読み飛ばしていく．（又は，空では無い行のみを拾い上げていく）．
+    \item LF，CRをSemicolonに置換する．
+    \item 最後に，ここまで処理した文字列をcharのベクタに変換する．
+\end{enumerate}
+\subsection{スキャナ}
+条件一致するまで，charのベクタをリードし続ける．リードされたcharは，順にバッファへと入れていく．条件一致した時点で処理を終了させる．\newline
+バッファを１つ目の戻り値とする．条件一致したcharを２つ目の戻り値とする．条件一致したcharにポジションは移動していない．
+
+\subsection{トークナイザ(小)}
+対象ごとに，小さなトークナイザを定義する．
+    \begin{enumerate}
+        \item 文字列と仮定する．スキャナはWhitespace又はSYMBOLTABLEに当たらない限り，スキャンし続ける．スキャンし，得られたcharのベクタを文字列に変換し，String Tokenとする．\newline
+        Whitespace及びSYMBOLTABLEに関する例外として，Double quote(")又はSingle quote(')の範囲は，全て文字列として解釈する．
+        \item 数列と仮定する．Current charを確認し，10進数ならば数列と再仮定する．スキャナはWhitespace又はSYMBOLTABLEに当たらない限り，スキャンし続ける．スキャンし，得られたcharのベクタを文字列に変換する．文字列を数列にパースする．パースに成功したら，Number Tokenとする．
+        \item 変数名と仮定する．Current charを確認し，Dollar(\$)ならば以降を変数名であると再仮定する．Dollar以降を対象とする．
+        スキャナはWhitespace又はSYMBOLTABLEに当たらない限り，スキャンし続ける．スキャンし，得られたcharのベクタを文字列に変換する．文字列がアルファベットから始まる場合には，それをIdent Tokenとする．
+        \item ファイルディスクリプタと仮定する．Current charを確認し，Att(@)ならば以降をファイルディスクリプタであると再仮定する．以降を対象とする．スキャナはWhitespace又はSYMBOLTABLEに当たらない限り，スキャンし続ける．スキャンし，得られたcharのベクタを文字列に変換する．文字列を数列にパースする．パースに成功したら，FD Tokenとする．
+        \item 特殊文字の扱い．以下の通りである．
+            \begin{enumerate}
+                \item Semicolonならば，Semicolon Tokenとする．
+                \item Equal(=)がならば，Equal Tokenとする．
+                \item Ampersand（\&）ならば，Ampersand Tokenとする．
+                \item Vertical bar（\textbar)ならば，Pipe Tokenとする．
+                \item Greater than （\textgreater）ならば，Gt Tokenとする．(Version 0.0.1ではRedirectのオペレータとして使用する．）
+                \item Less than（\textless）ならば，Lt Tokenとする．(Version 0.0.1ではRedirectのオペレータとして使用する．）
+                \item Attならば，4.を試みる．4.に失敗した場合には，２つの条件で処理を変える．\newline
+                条件１，ファイルディスクリプタをリードする関数そのものがエラーを返さずに，空の値（None）を返した場合には，End Of Fileとして解釈する．つまり，EOF Tokenとする．\newline
+                条件２，ファイルディスクリプタをリードする関数がエラーを返した場合には，仮リード（peek char）を行い，その結果に基づいて処理を変える．仮リードの結果がSomeであり尚且つWhitespace，又は仮リードの結果が存在しない（None）場合には，Attを文字列として解釈する．つまり，String Tokenとする．\newline
+                それ以外は，エラーとする．
+                \item Dollarならば，3.を試みる．3.に失敗した場合には，２つの条件で処理を変える．\newline
+                条件１，変数名をリードする関数そのものがエラーを返さずに，空の値（None）を返した場合には，End Of Fileとして解釈する．つまり，EOF Tokenとする．
+                条件２，変数名をリードする関数がエラーを返した場合には，仮リードを行い，その結果に基づいて処理を変える．仮リードの結果がSomeであり尚且つWhitespace，又は仮リードの結果が存在しない（None）場合には，Dollarを文字列として解釈する．つまり，String Token．\newline
+                それ以外は，エラーとする．
+                \item Double quote又はSingle quoteならば，1.に準拠する．
+            \end{enumerate}
+    \end{enumerate}
+\subsection{トークナイザ}
+トークナイザは，スキャナやトークナイザ（小）よりも先にCurrent charを確認し，適切なトークナイザ（小）を呼び出す．\newline
+もし，Current charがWhitespaceならば，Skipをする．
+
+\section{構文解析器}
+入力を受け取り，字句解析器に渡す．字句解析器は，スキャナとトークナイザを組み合わせて，入力をトークナイズする．\newline
+構文解析器は，トークナイズによって得られたトークン列に対して解析を行う．
+
+\subsection{ライトパーサ}
+ライトパーサといわれる，対象を限定した小さなパーサ群を定義する．
+
+\begin{enumerate}
+    \item 文字列と仮定する．入力されたトークンがString Tokenならば，String Exprとする．
+    \item 変数名と仮定する．入力されたトークンがIdent Tokenならば，Ident Exprとする．
+    \item 数列と仮定する．入力されたトークンがNumber Tokenならば，Number Exprとする．
+    \item ファイルディスクリプタと仮定する．入力されたトークンがFD Tokenならば，FD Exprとする．
+    \begin{enumerate}
+        \item Exprと仮定する．入力されたトークンがString，Ident，Number，FD Tokenのいずれかであれば，1.〜4.のライトパーサーにトークンを渡して，パースする．\newline
+        また，このライトパーサをExpr パーサとする．対象外としたいトークンを指定することができる．つまり，条件一致でExprのパースを行うことができる．
+        \item Assignと仮定する．入力として受け取れるトークンの数は３つであり，配列として受け取る．つまり，[Token;3]である．３は定数とする．\newline
+        LeftはIdent Tokenであることが期待され，MiddleはEqual Tokenであることが期待される．RightはString，Number，FD Tokenであることが期待される．その上で，LeftとRightを適切なライトパーサに渡し，パースを行う．また，MiddleがEqualであるかも確認する．
+        \item Redirectと仮定する．２つの形式を想定する必要がある．入力として受け取れるトークンの数は，２または３である．入力されたトークンの数を確認し，２なら形式ⅰ.へ，３なら形式ⅱ.へ渡す．
+        \begin{enumerate}
+            \item オペレータがLtならばLeftをFD0とし，GtならばLeftをFD1する．RightはExpr パーサへ入力し，Exprを得る．オペレータがLtまたはGtでなければ，エラーとする．
+            \item オペレータがLtまたはGtであるかを確認し，そうでなければエラーとする．LeftはFD Tokenであることが期待され，RightはString, Number, Ident, FD Tokenであることが期待される．LeftとRightを適切なライトパーサへ渡して，パースする．
+        \end{enumerate}
+    \end{enumerate}
+    \item コマンド列と仮定する．Command，Args，Redirects，Backgroundをそれぞれパースしていく．
+    \begin{enumerate}
+        \item Backgroundの判定．コマンド列と仮定されたトークン列の最後尾にAmpersandが存在するかを確かめ，存在する場合には，Ampersandをトークン列から除外し，尚且つCommandにBackgroundで処理するよう設定を行う．
+        \item Commandのパース．String, Number, Ident Tokenであることが期待される．ライトパーサへ渡し，パースしExprを得る．
+        \item Argsのパース．ArgsはOptionalである．Argsが0以上の場合には，ArgがString，Number, Ident Tokenであることが期待される．それぞれを適切なライトパーサへと渡し，パースする．
+        \item Redirectsのパース．コマンドには複数のRedirectを含めることができる．Redirectsが0以上の場合には，Redirectを適切なライトパーサへ渡して，パースする．
+    \end{enumerate}
+    \item Pipeと仮定する．トークン列を受け取り，トークン列が０または１，２以上かで処理を変える．\newline
+    トークン列にPipe Tokenが存在し，尚且つPipe Token以外の箇所をコマンド列と仮定するならば，このトークン列はPipe TokenをPivotとした，２次元のコマンド列であると解釈する．
+    \begin{enumerate}
+        \item トークン列が０．エラーとする．
+        \item トークン列が１．尚且つPipe Tokenならエラーとする．
+        \item トークン列が１．尚且つPipe Token以外ならバッファに入れ，バッファを戻り値とする．
+        \item トークン列が２以上．Pipe TokenをPivotに，トークン列を再帰的に分割する．分割したトークン列をコマンド列であると仮定し，適切なライトパーサへと渡して，パースする．
+    \end{enumerate}
+\end{enumerate}
+\subsection{パーサ}
+入力を受け取り，字句解析器へ渡す．トークナイズを行い，トークン列を得る．得たトークン列の最後尾がEOF Tokenかを確認する．EOF Tokenならば，EOF Tokenを除外する．そうでなければ，エラーとする．\newline
+Semicolon TokenをPivotに，トークン列を再帰的に分割する．このトークン列は，SemicolonをPivotとした２次元のトークン列であると解釈する．\newline
+entries = [ [...], ...] となっている．\newline
+各トークン列を，適切なライトパーサでパースしていく．パースに成功すると，Pipe，Assign，Commandのいずれかを得ることができる．それらをバッファに入れていく．バッファは，Semicolonを意味するASTのNodeである．そのバッファをルートとする．\newline
+パースに成功した結果，ASTを返す．
+
+\section{内部状態}
+FlatShellでは，fsh-engineというライブラリ（crate）で処理系が定義され実装されている．\newline
+また，その中でStateという構造体があり，Stateが内部状態を司ることになる．Stateは，Process handler，Current directory，Pipeのみを内包している．Stateとは別に，ShVarsというShell変数が定義され，実装されている．\newline
+fsh-engineにはevalという関数があり，eval関数は，AST，State，ShVarsを入力として受け取る．ASTはeval関数の中で処理され，適切な処理系に渡される．Stateは状態を保持する．eval関数が終了しても，Stateの状態は保たれている．そのため，eval関数が予期しないエラーを引き起こしたとしても，eval関数とは別の場所でStateにイニシャライズ等をかけることができる．ShVarsに関しても同様である．
+
+\section{Unix shellとの違い}
+
+\subsection{Whitespaceの考え方}
+FlatShellでは，可能な限りWhitespaceを認めることとしている．また，それが良いと考えている．\newline
+なぜ，Whitespaceを認めた自由形式である方が良いと考えるのか？ 最も，Bugを減らすことができるからである．Whitespaceを認めていない場合において，\$A=Helloとしたつもりが，\$A = HelloとTypoされていたとき，多くのUnix shellではエラーとして扱われる．\newline
+しかし，処理系などの実装ミスによっては，\$A= Helloをコマンド等と解釈されてしまう可能性も否定できない．\newline
+構文を緩くすることで，処理系などの実装を容易にし，実装ミスを減らすことが可能であると考えている．Whitespaceは，その１つである．
+
+\subsection{Unix shellにおけるWhitespace}
+なぜ，Unix shellではWhitespaceを認めていない箇所が多いのだろうか？ または，変則的ともいえるような構文となっているのだろうか？\newline
+主に２つの理由から，Whitespaceを認めていない思われる．
+\begin{enumerate}
+    \item WhitespaceをSkipする動作を必要とする．その動作が入る可能性があり，Whitespaceを認めていない場合とでは，少なからずリソース消費が多くなる． 
+    \item 字句及び構文解析を容易にするため．例えば，A=Helloという入力を受け取ったとき，その時点ではAが何を意味する文字（または文字列）なのかを理解していない．Aの次をリードし，それがEqualならば，Aを変数名だと直ぐに確定させることができる．
+\end{enumerate}
+
+\subsection{Unix shellにおける変数の代入式}
+代入式は，\textless Variable name\textgreater\textless Equal\textgreater\textless Value\textgreater となっている．\newline
+具体的には， \colorbox{yellow}{A=Hello}と書く．\newline
+ここには，Whitespaceを含めてはいけないという決まりがある．
+
+\subsection{Unix shellにおける変数の参照}
+参照は，\textless Dollar\textgreater\textless Variable name\textgreater となっている．\newline
+具体的には，\colorbox{yellow}{\$A}や\colorbox{yellow}{\$PATH}と書く．\newline
+勿論，Dollarと変数名の間にWhitespaceを入れることは認められない．これには同意である．\newline
+Whitespaceを認めてしまうと，\textless Dollar\textgreater\textless Whitespace\textgreater\textless Variable name\textgreater となれば，Dollarがコマンド名なのか，変数名を意味するDollarなのか，または変数名なのかを判定するのが難しくなる．困難とまでは言わないが，無理に容認すれば思わぬBugにつながる可能性がある．場合によっては，セキュリティ上のリスクとなるかもしれない．
+
+\section{コンピュータリソースの今と昔}
+5.1，5.2で触れた通り，Unix shellではWhitespaceを認めていない箇所が多々ある．\newline
+C言語の標準 APIが定義されたIEEE Std 1003.1-1988，Shellの仕様が追加されたPOSIX.2（つまり1992年）と2024年の今では，コンピュータリソースに大きな差がある．\newline
+現代のコンピュータリソースを持ってして，WhitespaceのSkipに費やされるリソースを惜む必要はないだろう．特に，オプティマイズすることを前提とするならば，尚更である．
+
+\section{今後について}
+追加予定：分岐構造，反復構造，Shell変数とは独立した変数（Shell scriptで使用するため）．
+
+\bibliographystyle{plain}
+\bibliography{}
+\begin{enumerate}
+    \item https://github.com/flucium/flatshell
+\end{enumerate}
+\end{document}

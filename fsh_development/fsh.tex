@@ -3,24 +3,61 @@
 \usepackage[letterpaper, top=2cm, bottom=2cm, left=3cm, right=3cm, marginparwidth=1.75cm]{geometry}
 \usepackage{titlesec}
 \usepackage{color}
-\title{FlatShellの開発}
+\title{FlatShellの開発Essay\\ \large Version 0.0.1}
 \author{FURUKAWA \textless flucium@flucium.net\textgreater }
 \date{April 23, 2024}
 \begin{document}
 \maketitle
 
-\section*{はじめに}
-Shellとは，オペレーティングシステム(OS)とユーザー間のインフェーフェイスとして機能するプログラムのことである．\newline
-よく知られているものとして，Unix shellであるBashやZsh，MicrosoftのPowerShellなどがある．\newline
-FlatShellとは，独自のShellであり，Unix shellなどには該当しない．また，Unix shellを比較対象としている．
+\tableofcontents
+\clearpage
 
-\section{FlatShellの思想}
-“フラットな状態は良い”という思想のもとで開発している．\newline
-構文はもちろんのこと，処理系などの実装においても，可能な限りネストを深くしないように心掛けている．また，Unix shellの構文と比較して，自由な形式で書けることを意識している．
+\section{はじめに}
+Shellとは，オペレーティングシステム(OS)とユーザー間のインフェーフェイスとして機能するプログラムのことである．\newline
+よく知られているものとしては，Unix shellであるBashやZsh，MicrosoftのPowerShellなどがある．\newline
+FlatShellとは，独自のShellであり，Unix shellなどには該当しない．\newline
+Unix shellの構文と比較し，自由な形式で書けることを意識している．\newline
+また，“フラットな状態は良い”という思想をもってして開発等をしている．構文はもちろんのこと，処理系などの実装においても，可能な限りネストを深くしないように心掛けている．
+
+\newpage
+
+\section{Whitespaceの考え方}
+FlatShellでは，可能な限りWhitespaceを認めることにし，それが良いと考えている．\newline
+なぜ，Whitespaceを認めた自由形式である方が良いと考えるのか？ 最も，Bugを減らすことができるからである．\$A=Helloとしたつもりが，\$A = HelloとTypoしたとき，多くのUnix shellではエラーとして扱われる．処理系などの実装ミスによっては，\$A = Helloをコマンド等と解釈されてしまう可能性も否定できない．\newline
+Whitespaceを認めることによって，\$A=Helloも\$A = Helloも同一だとすることができる．\newline
+結局，同一ならば無駄に思えるかもしれないが，逆だと考えている．\newline
+ヒトの様な予測困難性の高いものがプログラムを実装したり，コンピュータを操作する可能性があるならば，常に形式の範囲を広く考えるべきである．形式の範囲を広くすることによって，“予測困難”の範囲を狭めることができる．予期しないBugやエラーの率を下げることに繋がるだろう．\newline
+
+\subsection{Unix shellにおけるWhitespace}
+なぜ，Unix shellではWhitespaceを認めていない箇所が多いのだろうか？ または，変則的ともいえるような構文となっているのだろうか？\newline
+主に２つの理由から，Whitespaceを認めていない思われる．
+\begin{enumerate}
+    \item WhitespaceをSkipする動作を必要とする．その動作が入る可能性があり，Whitespaceを認めていない場合とでは，少なからずリソース消費が多くなる． 
+    \item 字句及び構文解析を容易にするため．例えば，A=Helloという入力を受け取ったとき，その時点ではAが何を意味する文字（または文字列）なのかを理解していない．Aの次をリードし，それがEqualならば，Aを変数名だと直ぐに確定させることができる．
+\end{enumerate}
+
+\subsection{Unix shellにおける変数の代入式}
+代入式は，\textless Variable name\textgreater\textless Equal\textgreater\textless Value\textgreater となっている．\newline
+具体的には， \colorbox{yellow}{A=Hello}と書く．\newline
+ここには，Whitespaceを含めてはいけないという決まりがある．
+
+\subsection{Unix shellにおける変数の参照}
+参照は，\textless Dollar\textgreater\textless Variable name\textgreater となっている．\newline
+具体的には，\colorbox{yellow}{\$A}や\colorbox{yellow}{\$PATH}と書く．\newline
+勿論，Dollarと変数名の間にWhitespaceを入れることは認められない．これには同意である．\newline
+Whitespaceを認めてしまうと，\textless Dollar\textgreater\textless Whitespace\textgreater\textless Variable name\textgreater となれば，Dollarがコマンド名なのか，変数名を意味するDollarなのか，または変数名なのかを判定するのが難しくなる．困難とまでは言わないが，無理に容認すれば思わぬBugにつながる可能性がある．場合によっては，セキュリティ上のリスクとなるかもしれない．
+
+\newpage
+
+\section{コンピュータリソースの今と昔}
+2. で触れた通り，Unix shellではWhitespaceを認めていない箇所が多々ある．\newline
+C言語の標準 APIが定義されたIEEE Std 1003.1-1988，Shellの仕様が追加されたPOSIX.2（つまり1992年）と2024年の今では，コンピュータリソースに大きな差がある．\newline
+現代のコンピュータリソースを持ってして，WhitespaceのSkipに費やされるリソースを惜む必要はないだろう．特に，オプティマイズすることを前提とするならば，尚更である．
+
+\newpage
 
 \section{字句解析器}
-FlatShellでは，入力に対してプリプロセッシングという事前処理を多段階で行い，その結果に対してスキャナとトークナイザを走らせ，トークンを得るようにしている．\newline
-以降，順を追って説明する．
+FlatShellでは，入力に対してプリプロセッシングという事前処理を多段階で行い，その結果に対してスキャナとトークナイザを走らせ，トークンを得るようにしている．
 
 \subsection{プリプロセッシング}
 \begin{enumerate}
@@ -66,12 +103,14 @@ FlatShellでは，入力に対してプリプロセッシングという事前�
 トークナイザは，スキャナやトークナイザ（小）よりも先にCurrent charを確認し，適切なトークナイザ（小）を呼び出す．\newline
 もし，Current charがWhitespaceならば，Skipをする．
 
+\newpage
+
 \section{構文解析器}
 入力を受け取り，字句解析器に渡す．字句解析器は，スキャナとトークナイザを組み合わせて，入力をトークナイズする．\newline
 構文解析器は，トークナイズによって得られたトークン列に対して解析を行う．
 
 \subsection{ライトパーサ}
-ライトパーサといわれる，対象を限定した小さなパーサ群を定義する．
+対象を限定した，ライトパーサといわれる簡略化された小さなパーサ群を定義する．
 
 \begin{enumerate}
     \item 文字列と仮定する．入力されたトークンがString Tokenならば，String Exprとする．
@@ -112,45 +151,20 @@ entries = [ [...], ...] となっている．\newline
 各トークン列を，適切なライトパーサでパースしていく．パースに成功すると，Pipe，Assign，Commandのいずれかを得ることができる．それらをバッファに入れていく．バッファは，Semicolonを意味するASTのNodeである．そのバッファをルートとする．\newline
 パースに成功した結果，ASTを返す．
 
+\newpage
+
 \section{内部状態}
 FlatShellでは，fsh-engineというライブラリ（crate）で処理系が定義され実装されている．\newline
 また，その中でStateという構造体があり，Stateが内部状態を司ることになる．Stateは，Process handler，Current directory，Pipeのみを内包している．Stateとは別に，ShVarsというShell変数が定義され，実装されている．\newline
 fsh-engineにはevalという関数があり，eval関数は，AST，State，ShVarsを入力として受け取る．ASTはeval関数の中で処理され，適切な処理系に渡される．Stateは状態を保持する．eval関数が終了しても，Stateの状態は保たれている．そのため，eval関数が予期しないエラーを引き起こしたとしても，eval関数とは別の場所でStateにイニシャライズ等をかけることができる．ShVarsに関しても同様である．
 
-\section{Unix shellとの違い}
-
-\subsection{Whitespaceの考え方}
-FlatShellでは，可能な限りWhitespaceを認めることとしている．また，それが良いと考えている．\newline
-なぜ，Whitespaceを認めた自由形式である方が良いと考えるのか？ 最も，Bugを減らすことができるからである．Whitespaceを認めていない場合において，\$A=Helloとしたつもりが，\$A = HelloとTypoされていたとき，多くのUnix shellではエラーとして扱われる．\newline
-しかし，処理系などの実装ミスによっては，\$A= Helloをコマンド等と解釈されてしまう可能性も否定できない．\newline
-構文を緩くすることで，処理系などの実装を容易にし，実装ミスを減らすことが可能であると考えている．Whitespaceは，その１つである．
-
-\subsection{Unix shellにおけるWhitespace}
-なぜ，Unix shellではWhitespaceを認めていない箇所が多いのだろうか？ または，変則的ともいえるような構文となっているのだろうか？\newline
-主に２つの理由から，Whitespaceを認めていない思われる．
-\begin{enumerate}
-    \item WhitespaceをSkipする動作を必要とする．その動作が入る可能性があり，Whitespaceを認めていない場合とでは，少なからずリソース消費が多くなる． 
-    \item 字句及び構文解析を容易にするため．例えば，A=Helloという入力を受け取ったとき，その時点ではAが何を意味する文字（または文字列）なのかを理解していない．Aの次をリードし，それがEqualならば，Aを変数名だと直ぐに確定させることができる．
-\end{enumerate}
-
-\subsection{Unix shellにおける変数の代入式}
-代入式は，\textless Variable name\textgreater\textless Equal\textgreater\textless Value\textgreater となっている．\newline
-具体的には， \colorbox{yellow}{A=Hello}と書く．\newline
-ここには，Whitespaceを含めてはいけないという決まりがある．
-
-\subsection{Unix shellにおける変数の参照}
-参照は，\textless Dollar\textgreater\textless Variable name\textgreater となっている．\newline
-具体的には，\colorbox{yellow}{\$A}や\colorbox{yellow}{\$PATH}と書く．\newline
-勿論，Dollarと変数名の間にWhitespaceを入れることは認められない．これには同意である．\newline
-Whitespaceを認めてしまうと，\textless Dollar\textgreater\textless Whitespace\textgreater\textless Variable name\textgreater となれば，Dollarがコマンド名なのか，変数名を意味するDollarなのか，または変数名なのかを判定するのが難しくなる．困難とまでは言わないが，無理に容認すれば思わぬBugにつながる可能性がある．場合によっては，セキュリティ上のリスクとなるかもしれない．
-
-\section{コンピュータリソースの今と昔}
-5.1，5.2で触れた通り，Unix shellではWhitespaceを認めていない箇所が多々ある．\newline
-C言語の標準 APIが定義されたIEEE Std 1003.1-1988，Shellの仕様が追加されたPOSIX.2（つまり1992年）と2024年の今では，コンピュータリソースに大きな差がある．\newline
-現代のコンピュータリソースを持ってして，WhitespaceのSkipに費やされるリソースを惜む必要はないだろう．特に，オプティマイズすることを前提とするならば，尚更である．
+\newpage
 
 \section{今後について}
 追加予定：分岐構造，反復構造，Shell変数とは独立した変数（Shell scriptで使用するため）．
+
+\newpage
+
 
 \bibliographystyle{plain}
 \bibliography{}

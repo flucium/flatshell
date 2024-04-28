@@ -74,12 +74,12 @@ FlatShellでは，入力に対してプリプロセッシングという事前�
 \subsection{トークナイザ(小)}
 対象ごとに，小さなトークナイザを定義する．
     \begin{enumerate}
-        \item 文字列と仮定する．スキャナはWhitespace又はSYMBOLTABLEに当たらない限り，スキャンし続ける．スキャンし，得られたcharのベクタを文字列に変換し，String Tokenとする．\newline
-        Whitespace及びSYMBOLTABLEに関する例外として，Double quote(")又はSingle quote(')の範囲は，全て文字列として解釈する．
-        \item 数列と仮定する．Current charを確認し，10進数ならば数列と再仮定する．スキャナはWhitespace又はSYMBOLTABLEに当たらない限り，スキャンし続ける．スキャンし，得られたcharのベクタを文字列に変換する．文字列を数列にパースする．パースに成功したら，Number Tokenとする．
+        \item 文字列と仮定する．スキャナはWhitespace又はSYMBOLSに当たらない限り，スキャンし続ける．スキャンし，得られたcharのベクタを文字列に変換し，String Tokenとする．\newline
+        Whitespace及びSYMBOLSに関する例外として，Double quote(")又はSingle quote(')の範囲は，全て文字列として解釈する．
+        \item 数列と仮定する．Current charを確認し，10進数ならば数列と再仮定する．スキャナはWhitespace又はSYMBOLSに当たらない限り，スキャンし続ける．スキャンし，得られたcharのベクタを文字列に変換する．文字列を数列にパースする．パースに成功したら，Number Tokenとする．
         \item 変数名と仮定する．Current charを確認し，Dollar(\$)ならば以降を変数名であると再仮定する．Dollar以降を対象とする．
-        スキャナはWhitespace又はSYMBOLTABLEに当たらない限り，スキャンし続ける．スキャンし，得られたcharのベクタを文字列に変換する．文字列がアルファベットから始まる場合には，それをIdent Tokenとする．
-        \item ファイルディスクリプタと仮定する．Current charを確認し，Att(@)ならば以降をファイルディスクリプタであると再仮定する．以降を対象とする．スキャナはWhitespace又はSYMBOLTABLEに当たらない限り，スキャンし続ける．スキャンし，得られたcharのベクタを文字列に変換する．文字列を数列にパースする．パースに成功したら，FD Tokenとする．
+        スキャナはWhitespace又はSYMBOLSに当たらない限り，スキャンし続ける．スキャンし，得られたcharのベクタを文字列に変換する．文字列がアルファベットから始まる場合には，それをIdent Tokenとする．
+        \item ファイルディスクリプタと仮定する．Current charを確認し，Att(@)ならば以降をファイルディスクリプタであると再仮定する．以降を対象とする．スキャナはWhitespace又はSYMBOLSに当たらない限り，スキャンし続ける．スキャンし，得られたcharのベクタを文字列に変換する．文字列を数列にパースする．パースに成功したら，FD Tokenとする．
         \item 特殊文字の扱い．以下の通りである．
             \begin{enumerate}
                 \item Semicolonならば，Semicolon Tokenとする．

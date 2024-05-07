@@ -1,14 +1,7 @@
 # FlatShell
-...
+This is a prototype of F shell (fsh). Archived.
 
-## How to use
-...
+### Product
+*under development…*
 
-## Build
-...
-
-## Third party
-**[thirdparty.json](https://github.com/flucium/flatshell/blob/main/thirdparty/thirdparty.json)**<br>
-
-## Sponsors
-...
+https://github.com/flucium/fsh
